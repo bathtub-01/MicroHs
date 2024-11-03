@@ -5,10 +5,11 @@
 module MicroHs.Exp(
   Exp(..),
   PrimOp,
+  Pat(..),
   substExp,
   app2, app3, cFlip,
   allVarsExp, freeVars,
-  lams, apps,
+  lams, apps, spine,
   ) where
 import Prelude(); import MHSPrelude hiding((<>))
 import Data.Char
@@ -20,12 +21,24 @@ import Text.PrettyPrint.HughesPJLite
 import Debug.Trace
 
 type PrimOp = String
+type Arity = Int
+type Idx = Int
+
+data Pat = X | At Pat Pat
+  deriving (Eq)
+
+instance Show Pat where
+  show X = "X"
+  show (At p (At p1 p2)) = show p ++ "(" ++ show (At p1 p2) ++ ")"
+  --show (At (At p1 p2) p) = show p1 ++ show p2 ++ show p
+  show (At p1 p2) = show p1 ++ show p2
 
 data Exp
   = Var Ident
   | App Exp Exp
   | Lam Ident Exp
   | Lit Lit
+  | Sc Arity Pat [Idx]
   deriving (Eq)
 
 app2 :: Exp -> Exp -> Exp -> Exp
@@ -51,6 +64,10 @@ ppExp ae =
     App f a -> parens $ ppExp f <+> ppExp a
     Lam i e -> parens $ text "\\" <> ppIdent i <> text "." <+> ppExp e
     Lit l -> text (showLit l)
+    Sc a p is -> text $ "<" ++ show a ++ ","
+                     ++ show p ++ ","
+                     ++ show is
+                     ++ ">"
 
 substExp :: Ident -> Exp -> Exp -> Exp
 substExp si se ae =
@@ -72,6 +89,7 @@ substExp si se ae =
                else
                    Lam i (substExp si se e)
     Lit _ -> ae
+    Sc _ _ _ -> ae
 
 -- This naive freeVars seems to be the fastest.
 freeVars :: Exp -> [Ident]
@@ -81,6 +99,7 @@ freeVars ae =
     App f a -> freeVars f ++ freeVars a
     Lam i e -> deleteAllBy (==) i (freeVars e)
     Lit _ -> []
+    Sc _ _ _ -> []
 
 allVarsExp :: Exp -> [Ident]
 allVarsExp ae =
@@ -89,6 +108,7 @@ allVarsExp ae =
     App f a -> allVarsExp f ++ allVarsExp a
     Lam i e -> i : allVarsExp e
     Lit _ -> []
+    Sc _ _ _ -> []
 
 lams :: [Ident] -> Exp -> Exp
 lams xs e = foldr Lam e xs
@@ -96,3 +116,12 @@ lams xs e = foldr Lam e xs
 apps :: Exp -> [Exp] -> Exp
 apps f = foldl App f
 
+-- the spine of an Exp
+spine :: Exp -> (Exp, [Exp])
+spine ae = spine' ae []
+  where
+    spine' e acc =
+      case e of
+        App f a -> spine' f (a : acc)
+        _ -> (e, acc)
+    
