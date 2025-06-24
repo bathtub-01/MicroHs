@@ -222,6 +222,23 @@ unzip ((x, y) : xys) =
   let  u = unzip xys
   in  (x : (fst u), y : (snd u))
   
+scanl :: (b -> a -> b) -> b -> [a] -> [b]
+scanl f = rec
+  where rec q ls = q : case ls of
+                         []   -> []
+                         x:xs -> rec (f q x) xs
+
+scanl1 :: (a -> a -> a) -> [a] -> [a]
+scanl1 f (x:xs) = scanl f x xs
+scanl1 _ []     = []
+
+scanr1 :: (a -> a -> a) -> [a] -> [a]
+scanr1 f = rec
+  where rec []     = []
+        rec [x]    = [x]
+        rec (x:xs) = f x q : qs
+              where qs@(q:_) = rec xs
+  
 and []       = True
 and (b : bs) = if b then and bs else False
 

@@ -13,7 +13,7 @@ import Prelude()
 import NanoPrelude
 
 main :: Int
-main = sum (totients 1 16)
+main = sum (totients 1 100)
         
 ---------------------------------------------------------------------------
 -- Main Function, sumTotient
