@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 136
 // Combinators in this file: 199
 #[rustfmt::skip]
- pub static While: LazyLock<Program> = LazyLock::new(|| {
+ pub static while: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0While.main
         vec![ // 0 

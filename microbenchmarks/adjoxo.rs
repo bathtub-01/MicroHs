@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 106
 // Combinators in this file: 175
 #[rustfmt::skip]
- pub static Adjoxo: LazyLock<Program> = LazyLock::new(|| {
+ pub static adjoxo: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Adjoxo.main
         vec![ // 0 

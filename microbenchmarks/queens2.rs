@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 58
 // Combinators in this file: 83
 #[rustfmt::skip]
- pub static Queens2: LazyLock<Program> = LazyLock::new(|| {
+ pub static queens2: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Queens2.main
         vec![ // 0 

@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 119
 // Combinators in this file: 228
 #[rustfmt::skip]
- pub static Countdown: LazyLock<Program> = LazyLock::new(|| {
+ pub static countdown: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Countdown.main
         vec![ // 0 

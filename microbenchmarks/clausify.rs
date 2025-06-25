@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 127
 // Combinators in this file: 204
 #[rustfmt::skip]
- pub static Clausify: LazyLock<Program> = LazyLock::new(|| {
+ pub static clausify: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Clausify.main
         vec![ // 0 

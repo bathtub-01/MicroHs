@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 39
 // Combinators in this file: 59
 #[rustfmt::skip]
- pub static Mss: LazyLock<Program> = LazyLock::new(|| {
+ pub static mss: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Mss.main
         vec![ // 0 

@@ -5,6 +5,7 @@ COMB_FILES := $(HS_FILES:.hs=.comb)
 ROM_FILES := $(HS_FILES:.hs=.rs)
 # Set Chisel project path
 MUTATOR_PATH := ~/workspace/sc-machine/src/main/scala/benchmarks
+SIMULATOR_PATH := ~/workspace/ouros-simulator/src/hardware/ouros/benchmarks
 
 # Rule to process all .hs files
 all: $(ROM_FILES)
@@ -16,7 +17,7 @@ all: $(ROM_FILES)
 
 # Pattern rule to convert .hs to .rs ROM
 %.rs: %.hs
-	mhs -i../lib $* -o$@
+	mhs -i../lib $* -o$(shell echo $@ | tr '[:upper:]' '[:lower:]')
 
 # Pattern rule to convert .hs to .comb
 %.comb: %.hs
@@ -31,6 +32,6 @@ rerun: clean all
 
 # Rule for installing binary to interpreter project
 install:
-	cp *.rs $(MUTATOR_PATH)/
+	cp *.rs $(SIMULATOR_PATH)/
 
 .PHONY: help clean all rerun % install

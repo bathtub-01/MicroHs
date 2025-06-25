@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 37
 // Combinators in this file: 69
 #[rustfmt::skip]
- pub static Permsort: LazyLock<Program> = LazyLock::new(|| {
+ pub static permsort: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Permsort.main
         vec![ // 0 

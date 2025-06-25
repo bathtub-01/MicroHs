@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 4
 // Combinators in this file: 3
 #[rustfmt::skip]
- pub static Fib: LazyLock<Program> = LazyLock::new(|| {
+ pub static fib: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Fib.main
         vec![ // 0 

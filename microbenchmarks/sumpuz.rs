@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 118
 // Combinators in this file: 219
 #[rustfmt::skip]
- pub static Sumpuz: LazyLock<Program> = LazyLock::new(|| {
+ pub static sumpuz: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Sumpuz.main
         vec![ // 0 

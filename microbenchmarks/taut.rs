@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 79
 // Combinators in this file: 129
 #[rustfmt::skip]
- pub static Taut: LazyLock<Program> = LazyLock::new(|| {
+ pub static taut: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Taut.main
         vec![ // 0 

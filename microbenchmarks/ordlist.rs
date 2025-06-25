@@ -7,7 +7,7 @@ use Atom::*;
 // Apps in this file: 43
 // Combinators in this file: 68
 #[rustfmt::skip]
- pub static Ordlist: LazyLock<Program> = LazyLock::new(|| {
+ pub static ordlist: LazyLock<Program> = LazyLock::new(|| {
     vec![
          // FUN0Ordlist.main
         vec![ // 0 
