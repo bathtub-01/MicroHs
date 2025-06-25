@@ -2,7 +2,7 @@
 HS_FILES := $(wildcard *.hs)
 # Generate list of target .comb files
 COMB_FILES := $(HS_FILES:.hs=.comb)
-ROM_FILES := $(HS_FILES:.hs=.scala)
+ROM_FILES := $(HS_FILES:.hs=.rs)
 # Set Chisel project path
 MUTATOR_PATH := ~/workspace/sc-machine/src/main/scala/benchmarks
 
@@ -12,10 +12,10 @@ all: $(ROM_FILES)
 # Rule to handle single argument
 %:
 	mhs -i../lib $@ -o$@.comb
-	mhs -i../lib $@ -o$@.scala
+	mhs -i../lib $@ -o$@.rs
 
-# Pattern rule to convert .hs to .scala ROM
-%.scala: %.hs
+# Pattern rule to convert .hs to .rs ROM
+%.rs: %.hs
 	mhs -i../lib $* -o$@
 
 # Pattern rule to convert .hs to .comb
@@ -24,13 +24,13 @@ all: $(ROM_FILES)
 
 # Clean rule to remove generated files
 clean:
-	rm -f *.comb *.scala
+	rm -f *.comb *.rs
 
 # Rule to clean and reprocess all files
 rerun: clean all
 
 # Rule for installing binary to interpreter project
 install:
-	cp *.scala $(MUTATOR_PATH)/
+	cp *.rs $(MUTATOR_PATH)/
 
 .PHONY: help clean all rerun % install

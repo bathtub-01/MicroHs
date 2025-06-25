@@ -1,4 +1,4 @@
-module MicroHs.GenRom(genRom) where
+module MicroHs.GenRom(genRom,getPatNum,inlineSingle,finalEtaApply,freeText) where
 import Prelude(); import MHSPrelude
 import Data.List
 import qualified MicroHs.IdentMap as M
