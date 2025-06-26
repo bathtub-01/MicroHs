@@ -64,7 +64,7 @@ primConvert ">" = ("LE", "true")
 primConvert "<" = ("LT", "false")
 primConvert ">=" = ("LT", "true")
 primConvert "+" = ("ADD", "false")
-primConvert "-" = ("SUB", "fasle")
+primConvert "-" = ("SUB", "false")
 primConvert "*" = ("MUL", "false")
 
 ptr :: Int -> (String -> String)
