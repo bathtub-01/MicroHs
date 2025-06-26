@@ -23,7 +23,7 @@ header = "\
 
 lazyLockProg :: String -> (String -> String) -> (String -> String)
 lazyLockProg name r =
-  (("#[rustfmt::skip]\n pub static " ++ name ++": LazyLock<Program> = LazyLock::new(|| {\n") ++) . r .
+  (("#[rustfmt::skip]\npub static " ++ name ++": LazyLock<Program> = LazyLock::new(|| {\n") ++) . r .
   ("\n});" ++)
 
 indentation :: Int -> String -> (String -> String)
@@ -51,7 +51,10 @@ atomIndent = indentation 3
 comb :: Int -> Pat -> [Int] -> (String -> String)
 comb art p is =
   atomIndent ("COM(" ++ show art ++ "," ++ show (getPatNum p) ++ ","
-              ++ listPrint is ++ "), //" ++ show p ++ "\n")
+              ++ listPrint isExt ++ "), //" ++ show p ++ "\n")
+  where
+    holes = 6 -- FIXME: better be configured
+    isExt = is ++ replicate (holes - length is) 0
 
 primConvert :: String -> (String, String)
 primConvert "==" = ("EQ", "false")
@@ -88,7 +91,7 @@ listPrint :: [Int] -> String
 listPrint [] = "[]"
 listPrint xs = "[" ++ inner ++ "]"
   where
-    inner = concat $ zipWith (\x y -> show x ++ y) xs (replicate (length xs - 1) ", " ++ [""])
+    inner = concat $ zipWith (\x y -> show x ++ y) xs (replicate (length xs - 1) "," ++ [""])
 
 genRomRs :: String -> (Ident, [LDef]) -> String
 genRomRs progName (mainName, ldefs) =
