@@ -1,4 +1,4 @@
-module While where
+module Whilex where
 
 import Prelude()
 import NanoPrelude
@@ -30,40 +30,67 @@ data State
   = Final [(Var, Int)]
   | Inter Statement [(Var, Int)]
 
+-- value: <1L><1!P(L)><1C(1,L)>
+value :: [(Int, t2)] -> Int -> (t2 -> t3) -> t3
 value ((x, y) : s) v k =
   if x == v
     then k y
     else value s v k
 value [] v k = primitive "error42" -- ad-hoc fix
 
+-- update: <1L><ML><1C(1,L)><L>
+update :: [(Int, Int)] -> Int -> ([(Int, Int)] -> t) -> Int -> t
 update [] v k i = k []
 update ((x, y) : s) v k i =
   if x == v
     then update s v (upd k v i) i
     else update s v (upd k x y) i
 
+-- upd: <1C(1,L)><L><L><L>
 upd k x y s = k ((x, y) : s)
 
+-- int: <1P(SL)><1C(1,L)>
+int :: Int -> (Int -> State) -> State
 int n k = if n == (0::Int) then k (0::Int) else k n
 
+-- bool: <1L><1C(1,L)>
+bool :: Bool -> (Bool -> State) -> State
 bool False k = k False
 bool True k  = k True
 
-add  k a b = int  (a + b  ) k
-sub  k a b = int  (a - b  ) k
-eq   k a b = bool (a == b ) k
-leq  k a b = bool (a <= b ) k
-notk k a   = bool (not a  ) k
+-- add: <1C(1,L)><1!P(L)><1!P(L)>
+add  k a b = int  (a + b) k
+
+-- sub: <1C(1,L)><1!P(L)><1!P(L)>
+sub  k a b = int  (a - b) k
+
+-- eq: <1C(1,L)><1!P(L)><1!P(L)>
+eq :: (Bool -> State) -> Int -> Int -> State
+eq   k a b = bool (a == b) k
+
+-- leq: <1C(1,L)><1!P(L)><1!P(L)>
+leq :: (Bool -> State) -> Int -> Int -> State
+leq  k a b = bool (a <= b) k
+
+-- notk: <1C(1,L)><1L>
+notk k a   = bool (not a) k
+
+-- andk: <1C(1,L)><1L><ML>
 andk k a b = bool (a && b) k
 
+-- seqq: <1C(1,L)><LC(S,L)><LC(S,L)>
 seqq f g k = f (comp g k)
+
+-- comp: <1C(1,L)><MC(1,L)><L>
 comp f g x = f (g x)
 
+-- aval: <1L><L><1C(1,L)>
 aval (N n) s k = k n
 aval (V x) s k = value s x k
 aval (Add a1 a2) s k = seqq (aval a1 s) (aval a2 s) (add k)
 aval (Sub a1 a2) s k = seqq (aval a1 s) (aval a2 s) (sub k)
 
+-- bval: <1L><L><1C(1,L)>
 bval TRUE s k = k True
 bval FALSE s k = k False
 bval (Eq a1 a2) s k = seqq (aval a1 s) (aval a2 s) (eq k)
@@ -71,22 +98,25 @@ bval (Le a1 a2) s k = seqq (aval a1 s) (aval a2 s) (leq k)
 bval (Neg b) s k = bval b s (notk k)
 bval (And a1 a2) s k = seqq (bval a1 s) (bval a2 s) (andk k)
 
+-- sosstm: <1L><L>
 sosstm (Ass x a) s = aval a s (update s x Final)
 sosstm Skip s = Final s
 sosstm (Comp ss1 ss2) s =
   case sosstm ss1 s of
     Inter ss10 s0 -> Inter (Comp ss10 ss2) s0
     Final s0 -> Inter ss2 s0
-
 sosstm (If b ss1 ss2) s = bval b s (cond s ss1 ss2)
 sosstm (While b ss) s =
   Inter (If b (Comp ss (While b ss)) Skip) s
 
+-- cond: <L><L><L><1L>
 cond s ss1 ss2 c = if c then Inter ss1 s else Inter ss2 s
 
+-- run: <1L>
 run (Inter ss s) = run (sosstm ss s)
 run (Final s) = s
 
+-- ssos: <1L><L>
 ssos ss s = run (Inter ss s)
 
 -- Small main

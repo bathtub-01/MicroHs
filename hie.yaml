@@ -105,6 +105,9 @@ cradle:
     - path: "mhs/MicroHs/GenRom.hs"
       component: "MicroHs:exe:mhs"
       
+    - path: "mhs/MicroHs/GenRomOScala.hs"
+      component: "MicroHs:exe:mhs"
+      
     - path: "mhs/MicroHs/GenRomRs.hs"
       component: "MicroHs:exe:mhs"
 
@@ -244,6 +247,9 @@ cradle:
       component: "MicroHs:exe:mhs"
 
     - path: "src/MicroHs/GenRom.hs"
+      component: "MicroHs:exe:mhs"
+      
+    - path: "src/MicroHs/GenRomOScala.hs"
       component: "MicroHs:exe:mhs"
       
     - path: "src/MicroHs/GenRomRs.hs"

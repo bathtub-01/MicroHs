@@ -10,6 +10,9 @@ import Data.Int
 import Data.Bool
 import Data.List_Type
 
+seq :: forall a b . a -> b -> b
+seq = primitive "seq"
+
 data Cmp = EQ | LT | GT
 
 data Maybe a = Nothing | Just a

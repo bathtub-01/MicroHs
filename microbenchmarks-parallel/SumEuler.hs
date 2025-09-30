@@ -8,12 +8,12 @@
 -- Colin Runciman
 ---------------------------------------------------------------------------
 
-module TotientRange where
+module SumEuler where
 import Prelude()
 import NanoPrelude
 
 main :: Int
-main = sum (totients 1 100)
+main = sum (totients 1 30)
         
 ---------------------------------------------------------------------------
 -- Main Function, sumTotient
@@ -46,11 +46,11 @@ euler n = length (filter (relprime n) [1 .. n-1])
 -- The relprime function returns true if it's arguments are relatively 
 -- prime, i.e. the highest common factor is 1.
 
-relprime' :: Int -> Int -> Bool
-relprime' x y = hcf x y == 1
-
 relprime :: Int -> Int -> Bool
-relprime x y = null (intersect (primeFactors x) (primeFactors y))
+relprime x y = hcf x y == 1
+
+relprime' :: Int -> Int -> Bool
+relprime' x y = null (intersect (primeFactors x) (primeFactors y))
 
 primeFactors :: Int -> [Int]
 primeFactors 1 = []

@@ -16,7 +16,7 @@ all-ch: $(CH_ROM_FILES)
 
 # Rule to handle single argument
 %:
-	mhs -i../lib $@ -o$@.comb
+	#mhs -i../lib $@ -o$@.comb
 	mhs -i../lib $@ -o$@.rs
 
 # Pattern rule to convert .hs to .rs ROM

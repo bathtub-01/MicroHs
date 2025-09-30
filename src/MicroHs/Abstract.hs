@@ -159,10 +159,10 @@ scK4 = Sc 5 X [0]
 --------------------
 
 compileOpt :: Exp -> Exp
--- compileOpt = etaRewrite . compileExpSc . removeSKI 
+compileOpt = etaRewrite . compileExpSc . removeSKI 
 -- compileOpt = compileBase . removeSKI . opInfix -- baseline method
 -- compileOpt = etaRewrite . compileExpSc . removeSKI . opInfix -- minimising combinator count
-compileOpt = etaRewrite . compileExpLazy . removeSKI . opInfix -- fully-laziness/self-optimising
+-- compileOpt = etaRewrite . compileExpLazy . removeSKI . opInfix -- fully-laziness/self-optimising
 -- compileOpt = removeSKI . improveT . compileExp  . opInfix -- ski from microhs
 -- compileOpt = db2e . unify . e2db . removeSKI . improveT . compileExp  . opInfix -- cecil's method
 

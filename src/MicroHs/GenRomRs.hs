@@ -69,7 +69,7 @@ primConvert "*" = ("MUL", "false")
 
 ptr :: Int -> (String -> String)
 ptr n =
-  atomIndent ("PTR(" ++ show n ++ "),\n")
+  atomIndent ("PTR(" ++ show n ++ ", false),\n")
 
 int :: Int -> (String -> String)
 int n =
@@ -82,6 +82,9 @@ prim op =
 
 y :: String -> String
 y = atomIndent "Y,\n"
+
+seqStr :: String -> String
+seqStr = atomIndent "SEQ(false),\n"
 
 err :: Int -> (String -> String)
 err n =
@@ -171,7 +174,7 @@ atom ae =
                else error "Strange Var exists."
     Lit (LInt i) -> int i
     Lit (LPrim "Y") -> y
-    Lit (LPrim ('e':'r':'r':'o':'r':rest)) -> err $ read rest
+    Lit (LPrim "seq") -> seqStr
     Lit (LPrim op) -> if "error" `isPrefixOf` op then err $ read (drop 5 op)
                         else prim op
     Lit _ -> error "Strange Lit exists."

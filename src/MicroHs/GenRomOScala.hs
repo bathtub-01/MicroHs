@@ -1,4 +1,4 @@
-module MicroHs.GenRom(genRom,getPatNum,inlineSingle,finalEtaApply,freeText) where
+module MicroHs.GenRomOScala(genRomOScala,getPatNum,inlineSingle,finalEtaApply,freeText) where
 import Prelude(); import MHSPrelude
 import Data.List
 import qualified MicroHs.IdentMap as M
@@ -16,6 +16,8 @@ header :: String
 header = "\
  \package benchmarks\n\
  \import common.Helper._\n\
+ \import common.Atom\n\
+ \import chisel3.Vec\n\
  \ \n"
 
 object :: String -> (String -> String) -> (String -> String)
@@ -132,8 +134,8 @@ killDead (mainName, ds) =
                       M.lookup n m
   in res
 
-genRom :: String -> (Ident, [LDef]) -> String
-genRom progName (mainName, ldefs) =
+genRomOScala :: String -> (Ident, [LDef]) -> String
+genRomOScala progName (mainName, ldefs) =
   let
     -- ds = killDead (mainName, inlineSingle ldefs)
     ds = finalEtaApply $ inlineSingle ldefs
