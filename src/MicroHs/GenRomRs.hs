@@ -50,8 +50,8 @@ atomIndent = indentation 3
 -- atoms
 comb :: Int -> Pat -> [Int] -> (String -> String)
 comb art p is =
-  atomIndent ("COM(" ++ show art ++ "," ++ show (getPatNum p) ++ ","
-              ++ listPrint isExt ++ "), //" ++ show p ++ "\n")
+  atomIndent ("COM(" ++ show art ++ "," ++ show p ++ ","
+              ++ listPrint isExt ++ "),\n")
   where
     holes = 6 -- FIXME: better be configured
     isExt = is ++ replicate (holes - length is) 0

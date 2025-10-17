@@ -121,7 +121,7 @@ maximum (x:ys) = foldr (\ y m -> if y > m then y else m) x ys
 
 enumFrom n = n : enumFrom (n+1)
 
-enumFromTo l h = takeWhile (<= h) (enumFrom l)
+enumFromTo l h = if l <= h then l : enumFromTo (l+1) h else []
 
 head (x : xs) = x
 head [] = primitive "error3"
