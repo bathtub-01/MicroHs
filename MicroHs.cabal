@@ -60,6 +60,7 @@ executable mhs
   default-extensions:  ScopedTypeVariables TypeSynonymInstances MultiParamTypeClasses
                        FlexibleInstances BangPatterns
   other-modules:       MicroHs.Abstract
+                       MicroHs.AbstractESC
                        MicroHs.Builtin
                        MicroHs.Compile
                        MicroHs.CompileCache
@@ -94,6 +95,7 @@ executable mhs
                        MicroHs.GenRom
                        MicroHs.GenRomOScala
                        MicroHs.GenRomRs
+                       MicroHs.CodeGen
                        MicroHs.MRnf
                        Text.ParserComb
                        Text.PrettyPrint.HughesPJLite

@@ -27,6 +27,7 @@ import System.IO.Serialize
 import System.IO.TimeMilli
 import System.Process
 import MicroHs.Abstract
+import MicroHs.AbstractESC
 import MicroHs.Builtin
 import MicroHs.CompileCache
 import MicroHs.Desugar
@@ -240,7 +241,7 @@ compileModule flags impt mn pathfn file = do
       in
         map (\(i, e) -> (i, subOps e)) (tBindingsOf dmdl)
   let
-    scGraphs = [ (i, compileOpt e) | (i, e) <- opMoved ]
+    scGraphs = [ (i, compileEsc e) | (i, e) <- opMoved ]
   let
     cmdl = setBindings dmdl scGraphs
   () <- return $ rnfErr $ tBindingsOf cmdl  -- This makes execution slower, but speeds up GC

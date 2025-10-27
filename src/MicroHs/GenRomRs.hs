@@ -99,7 +99,6 @@ listPrint xs = "[" ++ inner ++ "]"
 genRomRs :: String -> (Ident, [LDef]) -> String
 genRomRs progName (mainName, ldefs) =
   let
-    -- ds = killDead (mainName, inlineSingle ldefs)
     ds = finalEtaApply $ inlineSingle ldefs
     dMap = M.fromList ds
     -- state: 1. fun counter; 2. app counter; 3. comb counter; 4. function map; 5. resulting string
@@ -118,39 +117,6 @@ genRomRs progName (mainName, ldefs) =
           -- Walk n's children
           mapM_ dfs $ freeVars e
 
-    buildFunc :: Exp -> String -> State (Int, Int, Int, M.Map Exp, String -> String) ()
-    buildFunc e name =
-      let
-        -- state: 1. ptr counter; 2. comb counter; 3. current spine; 4. apps
-        build :: Exp -> State (Int, Int, String -> String, [String -> String]) ()
-        build e = do
-          (i, combs, s, as) <- get
-          case e of
-            App f (App a1 a2) -> do
-              put (i, combs, freeText "", as)
-              build (App a1 a2)
-              (i', combs', s', as') <- get
-              put (i' + 1, combs', ptr i' . s, as' ++ [app i' s'])
-              build f
-            App f a -> do
-              let combs' =
-                    case a of
-                      Sc _ _ _ -> combs + 1
-                      _ -> combs
-              put(i, combs', atom a . s, as)
-              build f
-            _ -> do
-              let combs' =
-                    case e of
-                      Sc _ _ _ -> combs + 1
-                      _ -> combs
-              put(i, combs', atom e . s, as)
-      in do
-      (i, ptr, combs, seen, r) <- get
-      let (_, (ptr', combs', spn, aps)) = runState (build e) (ptr, combs, freeText "", [])
-      put (i, ptr', combs', seen, r . indentation 2 (" // FUN" ++ show i ++ name  ++ "\n") . app (ptr - 1) spn . foldr (.) (freeText "") aps)
-           
-          
     (_, (funCount, appCount, combCount, defs, res)) = runState (dfs mainName) (0, 0, 0, M.empty, freeText "")
     ref i = Var $ mkIdent $ "PTR" ++ show i
     findIdentIn n m = fromMaybe (errorMessage (getSLoc n) $ "No definition found for: " ++ showIdent n) $
@@ -166,6 +132,41 @@ genRomRs progName (mainName, ldefs) =
      ++ "// Apps in this file: " ++ show appCount ++ "\n"
      ++ "// Combinators in this file: " ++ show combCount ++ "\n"
      ++ lazyLockProg progName (vecS res) ""
+
+buildFunc :: Exp -> String -> State (Int, Int, Int, M.Map Exp, String -> String) ()
+buildFunc e name = do
+  (i, ptr, combs, seen, r) <- get
+  let (_, (ptr', combs', spn, aps)) = runState (buildExp e) (ptr, combs, freeText "", [])
+  put (i, ptr', combs',
+       seen, r
+        . indentation 2 (" // FUN" ++ show i ++ name  ++ "\n")
+        . app (ptr - 1) spn
+        . foldr (.) (freeText "") aps)
+
+-- state: 1. ptr counter; 2. comb counter; 3. current spine; 4. apps
+buildExp :: Exp -> State (Int, Int, String -> String, [String -> String]) ()
+buildExp e = do
+  (i, combs, s, as) <- get
+  case e of
+    App f (App a1 a2) -> do
+      put (i, combs, freeText "", as)
+      buildExp (App a1 a2)
+      (i', combs', s', as') <- get
+      put (i' + 1, combs', ptr i' . s, as' ++ [app i' s'])
+      buildExp f
+    App f a -> do
+      let combs' =
+            case a of
+              Sc _ _ _ -> combs + 1
+              _ -> combs
+      put(i, combs', atom a . s, as)
+      buildExp f
+    _ -> do
+      let combs' =
+            case e of
+              Sc _ _ _ -> combs + 1
+              _ -> combs
+      put(i, combs', atom e . s, as)
 
 atom :: Exp -> (String -> String)
 atom ae =

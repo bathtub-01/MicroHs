@@ -8,6 +8,9 @@ cradle:
 
     - path: "mhs/MicroHs/Abstract.hs"
       component: "MicroHs:exe:mhs"
+      
+    - path: "mhs/MicroHs/AbstractESC.hs"
+      component: "MicroHs:exe:mhs"
 
     - path: "mhs/MicroHs/Builtin.hs"
       component: "MicroHs:exe:mhs"
@@ -110,6 +113,9 @@ cradle:
       
     - path: "mhs/MicroHs/GenRomRs.hs"
       component: "MicroHs:exe:mhs"
+      
+    - path: "mhs/MicroHs/CodeGen.hs"
+      component: "MicroHs:exe:mhs"
 
     - path: "mhs/MicroHs/MRnf.hs"
       component: "MicroHs:exe:mhs"
@@ -151,6 +157,9 @@ cradle:
       component: "MicroHs:exe:mhs"
 
     - path: "src/MicroHs/Abstract.hs"
+      component: "MicroHs:exe:mhs"
+      
+    - path: "src/MicroHs/AbstractESC.hs"
       component: "MicroHs:exe:mhs"
 
     - path: "src/MicroHs/Builtin.hs"
@@ -253,6 +262,9 @@ cradle:
       component: "MicroHs:exe:mhs"
       
     - path: "src/MicroHs/GenRomRs.hs"
+      component: "MicroHs:exe:mhs"
+      
+    - path: "src/MicroHs/CodeGen.hs"
       component: "MicroHs:exe:mhs"
 
     - path: "src/MicroHs/MRnf.hs"

@@ -44,6 +44,9 @@ data Exp
   | Lam Ident Exp
   | Lit Lit
   | Sc Arity Pat [Idx]
+  | Esc Arity Exp
+  | Arg Int
+  | Cbp Int
   deriving (Eq)
 
 instance MRnf Exp where
@@ -79,6 +82,9 @@ ppExp ae =
                      ++ show p ++ ","
                      ++ show is
                      ++ ">"
+    Esc a b -> text ("<" ++ show a ++ ",") <> ppExp b <> text ">"
+    Arg i -> text ("Arg" ++ show i)
+    Cbp p -> text ("Ptr" ++ show p)
 
 substExp :: Ident -> Exp -> Exp -> Exp
 substExp si se ae =
@@ -111,6 +117,8 @@ freeVars ae =
     Lam i e -> deleteAllBy (==) i (freeVars e)
     Lit _ -> []
     Sc _ _ _ -> []
+    Esc _ e -> freeVars e -- template may contain function pointers
+    _ -> []
 
 allVarsExp :: Exp -> [Ident]
 allVarsExp ae =
@@ -120,6 +128,8 @@ allVarsExp ae =
     Lam i e -> i : allVarsExp e
     Lit _ -> []
     Sc _ _ _ -> []
+    Esc _ e -> allVarsExp e
+    _ -> []
 
 lams :: [Ident] -> Exp -> Exp
 lams xs e = foldr Lam e xs

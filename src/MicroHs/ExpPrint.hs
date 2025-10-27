@@ -73,6 +73,9 @@ toStringP ae =
     --App f a -> ("(" ++) . toStringP f . (" " ++) . toStringP a . (")" ++)
     App f a -> toStringP f . toStringP a . ("@" ++)
     Sc _ _ _ -> (show ae ++) . (' ' :)
+    Esc _ _ -> (show ae ++) . (' ' :)
+    Arg _ -> (show ae ++) . (' ' :)
+    Cbp _ -> (show ae ++) . (' ' :)
 
 quoteString :: String -> String
 quoteString s =

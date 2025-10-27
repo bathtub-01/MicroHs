@@ -231,7 +231,7 @@ abstractSc x ae =
     Sc ar pt is -> -- App scK ae
       if True {-ar < 7-} -- FIXME: parameterise this (maybe allow 7??)
       then Sc (ar + 1) pt (map (+ 1) is)
-      else App scK ae
+      else App scK ae 
 
 example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
 
@@ -251,39 +251,9 @@ exampleBig' = Lam (mkIdent "a") (Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkId
 
 exampleBig'' = Lam (mkIdent "a") (App (Var (mkIdent "Y")) (Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (Var (mkIdent "x")) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "a"))))))))
 
-eqList1 = Lam (mkIdent "x2") (Lam (mkIdent "x3") (Var (mkIdent "False")))
+addTwo = Lam (mkIdent "a") $ Lam (mkIdent "b") $ App (App (Var $ mkIdent "a") (Lit $ LPrim "+")) (Var $ mkIdent "b")
 
-eqList2 = App (Var (mkIdent "q2")) (App (App (Var (mkIdent "q3")) (Var (mkIdent "True"))) eqList1)
-
-eqList3 = App (App (Var (mkIdent "eqList@")) (Var (mkIdent "x5"))) (Var (mkIdent "x7"))
-
-eqList4 = App (Var (mkIdent "&&")) (App (App (Var (mkIdent "q1")) (Var (mkIdent "x4"))) (Var (mkIdent "x6")))
-
-eqList5 = Lam (mkIdent "x6") (Lam (mkIdent "x7") (App eqList4 eqList3))
-
-eqList6 = App (Var (mkIdent "q3")) (Var (mkIdent "False"))
-
-eqList7 = Lam (mkIdent "x4") (Lam (mkIdent "x5") (App eqList6 eqList5))
-
-eqList7' = Lam (mkIdent "x5") eqList5
-
-eqList7'' = Lam (mkIdent "x4") (Lam (mkIdent "x5") eqList5)
-
-eqList8 = Lam (mkIdent "eqList@") (Lam (mkIdent "q2") (Lam (mkIdent "q3") (App eqList2 eqList7)))
-
-eqList = Lam (mkIdent "q1") (App (Var (mkIdent "Y")) eqList8)
-
--- ((Data.List_Type.: $x2) (NanoPrelude.takeWhile@ $x3))
-takeWhile1 = App (App (Var (mkIdent "{:}")) (Var (mkIdent "x2"))) (App (Var (mkIdent "takeWhile@")) (Var (mkIdent "x3")))
--- (($q1 $x2) Data.List_Type.[])
-takeWhile2 = App (App (Var (mkIdent "q1")) (Var (mkIdent "x2"))) (Var (mkIdent "[]"))
--- (\$x2. (\$x3. ((($q1 $x2) Data.List_Type.[]) ((Data.List_Type.: $x2) (NanoPrelude.takeWhile@ $x3)))))
-takeWhile3 = Lam (mkIdent "x2") (Lam (mkIdent "x3") (App takeWhile2 takeWhile1))
---
-takeWhile4 = Lam (mkIdent "takeWhile@") (Lam (mkIdent "q2") (App (App (Var (mkIdent "q2")) (Var (mkIdent "[]"))) takeWhile3))
-takeWhile4' = Lam (mkIdent "q2") (App (App (Var (mkIdent "q2")) (Var (mkIdent "[]"))) takeWhile3)
-
-takeWhile' = Lam (mkIdent "q1") (App (Var (mkIdent "Y")) takeWhile4)
+innerLam = Lam (mkIdent "x") $ App (Var $ mkIdent "x") addTwo
 
 gotCha = Lam (mkIdent "x") (Lam (mkIdent "y")
                             (App (Var (mkIdent "y"))
@@ -306,9 +276,9 @@ exampleT2 = Lam (mkIdent "x") (Lam (mkIdent "y") (App (App (App (Var (mkIdent "s
 --   rule priority: absorb -> extension -> addition
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
 standardCombine (Sc ar1 p1 is1) args1 (Sc ar2 p2 is2) args2 =
-  if getHoles p1 + getHoles p2 <= 6 && ar1 + ar2 - 1 <= 7
-      && not (p1 == X && p2 == At X (At X (At X (At X X)))) -- avoid patttern 64
-     --True
+  if --getHoles p1 + getHoles p2 <= 6 && ar1 + ar2 - 1 <= 7
+     -- && not (p1 == X && p2 == At X (At X (At X (At X X)))) -- avoid patttern 64
+     True
   then -- FIXME: parameterise this
     let
       c = Sc (ar1 + ar2 - 1) (At p1 p2) (map redirect is1 ++ map (+ length args1) is2)
@@ -341,7 +311,7 @@ standardCombine (Sc ar1 p1 is1) args1 (Sc ar2 p2 is2) args2 =
     a1Old = discardSc c1 args1
     a2Old = discardSc c2 args2
 
--- Tries to minimise combinator usage, handles combinator expression in non-unary form
+-- Tries to minimise combinator usage, can handle combinator expression in non-unary form
 combineSc :: Exp -> Exp -> Exp
 combineSc a1 a2 =
   let
@@ -371,7 +341,7 @@ combineSc a1 a2 =
           else
             addSc c1 args1 c2 args2 -- consider how to compress later
         else if a2IsUnary &&
-                length (filter (== length args1 + 1) is1) <= 1 -- avoid recompute
+                (length (filter (== length args1 + 1) is1) <= 1 || a2 == scI) -- avoid recompute
                 {-&&getHoles p1 + length (filter (== length args1 + 1) is1) * (getHoles p2 - 1) <= 6-} then -- a1 is not unary, will absorb a2
           let
             updatePat p is = updatePatWith p is p2
@@ -900,6 +870,7 @@ compileExpLazy ae =
 
 -- assume abstractLazy always produces unary-form
 -- this guarentees combineLazy only needs to handle unary-form
+-- do we need S', B' and C' styled thing?
 abstractLazy :: Ident -> Exp -> Exp
 abstractLazy x ae =
   case ae of
