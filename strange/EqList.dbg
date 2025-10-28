@@ -1,6 +1,37 @@
 [[Com 1 2,Ptr 2],[Com 1 20,Int 101,Int 200],[Com 1 20,Int 1,Int 100],[Com 1 12,Prm "<",Ptr 1,Ptr 0]]
 
 combs:
+[[Apt 0]]
+[[Apt 1]]
+[[Apt 0,Int 0,Int 42]]
+[[Com 1 16]]
+[[Com 1 3]]
+[[Com 1 18,Ptr 1,Ptr 0],[Apt 3,Apt 4,Apt 5],[Apt 0,Apt 1,Apt 2]]
+[[Com 6 5,Apt 0,Apt 1,Apt 4,Apt 2,Apt 3]]
+[[Apt 0,Com 1 16,Ptr 0],[Com 5 6,Apt 1,Apt 2,Apt 3,Apt 4]]
+[[Com 5 7,Apt 0,Apt 1,Apt 3,Apt 2]]
+[[Apt 0,Ptr 1,Ptr 0],[Com 4 8,Apt 3,Apt 1,Apt 2],[Apt 3,Com 1 14,Com 1 4]]
+[[Com 4 9,Apt 2,Apt 0,Apt 1]]
+[[Com 3 10,Apt 0,Apt 1]]
+[[Prm "Y",Ptr 0],[Com 2 11,Apt 0]]
+[[Apt 0]]
+[[Com 1 13]]
+[[Apt 0]]
+[[Com 2 15,Apt 0]]
+[[Apt 0,Com 1 16,Apt 1]]
+[[Com 2 17,Apt 0]]
+[[Prm "<=",Apt 0,Apt 3,Com 1 22,Ptr 2],[Prm "+",Apt 2,Int 1],[Com 1 20,Ptr 0,Apt 3],[Com 1 26,Apt 1,Ptr 1]]
+[[Com 4 19,Apt 0,Apt 0,Apt 0]]
+[[Apt 0]]
+[[Com 2 21,Apt 0]]
+[[Apt 2,Apt 0,Apt 1]]
+[[Com 3 23,Apt 0,Apt 1]]
+[[Com 3 24,Apt 0,Apt 1]]
+[[Com 2 25,Apt 0]]
+
+[[Com 1 2,Ptr 2],[Com 1 20,Int 101,Int 200],[Com 1 20,Int 1,Int 100],[Com 1 12,Prm "<",Ptr 1,Ptr 0]]
+
+combs:
 Arg0
 Arg1
 ((Arg0 #0) #42)

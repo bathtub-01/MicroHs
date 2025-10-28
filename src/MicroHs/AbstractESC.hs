@@ -6,6 +6,8 @@ import Prelude(); import MHSPrelude
 import MicroHs.Ident
 import MicroHs.Exp
 import MicroHs.Expr(Lit(..))
+import MicroHs.State
+import Data.List
 
 -- compileOpt: remove all lambdas
 -- print program imgs (heap + reducer); translate remaining SCs into ESCs
@@ -15,6 +17,14 @@ isPrim s ae =
   case ae of
     Lit (LPrim ss) -> s == ss
     _       -> False
+
+example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
+
+example1 = (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))
+
+example2 = (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
+
+exampleBig = Lam (mkIdent "a") (App (Var (mkIdent "a")) (App (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "a"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))) (Var (mkIdent "a"))))
 
 scI = Sc 1 X [0]
 scK = Sc 2 X [0]
@@ -70,7 +80,7 @@ removeSKI ae
 -- 1. removeSKI: convert SKI combinators into SCs
 -- 2. compileExpEsc: remove lambdas into ESCs
 compileEsc :: Exp -> Exp
-compileEsc = compileExpEsc . removeSKI
+compileEsc = etaRewrite . compileExpEsc . removeSKI
 
 compileExpEsc :: Exp -> Exp
 compileExpEsc ae =
@@ -114,10 +124,136 @@ standardCombine (Esc ar1 bd1) args1 (Esc ar2 bd2) args2 =
     in foldl App c (args1 ++ args2)
 
 argReorder :: Ident -> Exp -> Exp
-argReorder x = id
+argReorder x ae =
+  case ae of
+    App _ _ ->
+      let (c, args) = spine ae in
+        case c of
+          Esc ar body ->
+            -- 1. compress the same args (beware args might be longer than ar)
+            -- 2. reorder x to the last position
+            let
+              is = pullout body
+              edibleArgs = take ar args
+              (is', args') = argCompress is edibleArgs
+              ar' = ar - (length edibleArgs - length args')
+              moveToEnd _ [] = []
+              moveToEnd x (y:ys)
+                | x == y = ys ++ [x]
+                | otherwise = y : moveToEnd x ys
+              args'' = moveToEnd (Var x) args' 
+              xIdx = findIndex (== (Var x)) args'
+              is'' = case xIdx of
+                Just i ->
+                  map (\i' -> if i' == i then length args'' - 1
+                        else if i' > i && i' <= length args'' - 1 then i' - 1
+                        else i') is'
+                Nothing -> is'
+              body' = refill body is''
+              c' = Esc ar' body'
+            in fromSpine (c', map (argReorder x) args'' ++ drop ar args)
+          _ -> fromSpine (c, map (argReorder x) args)
+    _ -> ae
 
-etaRewrite :: Exp -> Exp
-etaRewrite = id
+argCompress :: [Int] -> [Exp] -> ([Int], [Exp])
+argCompress is args =
+  case dupPair args of
+    (es, Just(i', i)) ->
+      argCompress (map (\idx -> if idx == i' then i else if idx > i' then idx - 1 else idx) is) es -- fixed point
+    (_, Nothing) -> (is, args)
+
+-- find a duplicated pair and remove it
+dupPair :: [Exp] -> ([Exp], Maybe (Int, Int))
+dupPair args =
+  case dup of
+    Just (i', i) -> (removeNth i' args, dup)
+    Nothing -> (args, dup)
+  where
+    dup = go args 0
+    --                          (from, to)
+    go :: [Exp] -> Int -> Maybe (Int, Int)
+    go [] _ = Nothing
+    go (e:es) i = case elemIndex e es of
+      Just i' -> Just (i' + i + 1, i)
+      Nothing -> go es (i + 1)
+    removeNth n xs = take n xs ++ drop (n + 1) xs
+
+pullout :: Exp -> [Int]
+pullout e =
+  let
+    pullout' :: Exp -> ([Int] -> [Int])
+    pullout' (App e1 e2) = pullout' e1 . pullout' e2
+    pullout' (Arg i) = (i:)
+    pullout' _ = id
+  in pullout' e []
+
+refill :: Exp -> [Int] -> Exp
+refill e idxs =
+  let
+    refill' :: Exp -> State [Int] Exp
+    refill' (App e1 e2) = do
+      e1' <- refill' e1
+      e2' <- refill' e2
+      return (App e1' e2')
+    refill' (Arg _) = do
+      (i:is) <- get
+      put is
+      return (Arg i)
+    refill' e' = return e'
+    (res, _) = runState (refill' e) idxs
+  in res
+
+etaRewrite :: Exp -> Exp 
+etaRewrite = etaApply . etaShrink
+
+etaShrink :: Exp -> Exp
+etaShrink (App e1 e2) = App (etaShrink e1) (etaShrink e2)
+etaShrink (Esc ar body) =
+  let
+    shrink :: Int -> Exp -> [Int] -> (Int, Exp)
+    shrink a b is =
+      if isOnlyLast (a - 1) is && smallTail b
+      then shrink (a - 1) (stripTail b) (init is)
+      else (a, b)
+    isOnlyLast :: Int -> [Int] -> Bool
+    isOnlyLast _ [] = False
+    isOnlyLast x xs = last xs == x && count x xs == 1
+      where count n = length . filter (== n)
+    smallTail (App _ (Arg _)) = True
+    smallTail _               = False
+    stripTail (App e1 _) = e1
+    idxs = pullout body
+    (ra, rb) = shrink ar body idxs
+  in Esc ra rb
+etaShrink e = e
+
+etaApply :: Exp -> Exp
+etaApply ae =
+  case ae of
+    App _ _ ->
+      let
+        (c, args) = spine ae
+      in
+        case c of
+          Esc ar body ->
+            if ar <= length args && safeToApply 
+            then
+              etaApply (fromSpine (apply body (take ar etaArgs), drop ar etaArgs)) -- fixed-point recursion
+            else fromSpine (c, etaArgs)
+            where
+              idxs = pullout body
+              safeToApply = noDuplicates idxs
+              etaArgs = map etaApply args
+              noDuplicates [] = True
+              noDuplicates (x:xs) = x `notElem` xs && noDuplicates xs
+          _ -> fromSpine (c, map etaApply args)
+    Esc 0 body -> body
+    _ -> ae
+
+apply :: Exp -> [Exp] -> Exp
+apply bd args =
+  mapExpOnArg sub bd
+  where sub (Arg i) = args !! i
 
 mapExpOnArg :: (Exp -> Exp) -> Exp -> Exp
 mapExpOnArg f = mapExp (onArg f)

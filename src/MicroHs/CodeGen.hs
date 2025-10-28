@@ -25,6 +25,7 @@ data Atom
   | Com Arity Ptr
   | Fun Ptr
   | Ptr Ptr
+  | Apt Ptr
   deriving(Show)
   
 type App = [Atom]
@@ -39,6 +40,7 @@ expToAtom ae =
     Lit (LPrim s) -> Prm s
     Sc a _ _ -> Com a 42
     Esc a (Cbp p) -> Com a p
+    Arg i -> Apt i
     _ -> error $ "Not an Atom: " ++ show ae
 
 expToAExp :: Exp -> AExp
@@ -90,9 +92,8 @@ codeGen (mainName, ds) =
     (heap, comb, scs) = extractCombs removed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns (mainName, heap) singletons
-    comb' = map (substVar varMap) comb
-    -- todo: extend comb to contain all
-  in (heap', comb)
+    comb' = map (expToAExp . substVar varMap) comb
+  in (heap', comb')
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
