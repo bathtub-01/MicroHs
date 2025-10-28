@@ -50,7 +50,13 @@ solve :: Int -> [[Int]] -> [[[[Int]]]]
 solve n mask =
   if n == 0
     then [[]]
-    else concatMap (sol (n - 1)) (fill mask)
+    else concatMap' (sol (n - 1)) (fill mask)
+    
+concatMap' :: forall a b . (a -> [b]) -> [a] -> [b]
+concatMap' f = rec
+  where
+    rec [] = []
+    rec (x:xs) = let rest = rec xs in (f x ++ rest) `try` rest
 
 -- sol: <1!P(1L)><L>
 sol :: Int -> [[Int]] -> [[[[Int]]]]

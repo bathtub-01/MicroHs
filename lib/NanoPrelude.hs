@@ -13,6 +13,9 @@ import Data.List_Type
 seq :: forall a b . a -> b -> b
 seq = primitive "seq"
 
+try :: forall a b . a -> b -> a
+try =  primitive "try"
+
 data Cmp = EQ | LT | GT
 
 data Maybe a = Nothing | Just a

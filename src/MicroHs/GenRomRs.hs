@@ -86,6 +86,9 @@ y = atomIndent "Y,\n"
 seqStr :: String -> String
 seqStr = atomIndent "SEQ(false),\n"
 
+tryStr :: String -> String
+tryStr = atomIndent "TRY,\n"
+
 err :: Int -> (String -> String)
 err n =
   atomIndent ("ERR(" ++ show n ++ "),\n")
@@ -175,6 +178,7 @@ atom ae =
     Lit (LInt i) -> int i
     Lit (LPrim "Y") -> y
     Lit (LPrim "seq") -> seqStr
+    Lit (LPrim "try") -> tryStr
     Lit (LPrim op) -> if "error" `isPrefixOf` op then err $ read (drop 5 op)
                         else prim op
     Lit _ -> error "Strange Lit exists."

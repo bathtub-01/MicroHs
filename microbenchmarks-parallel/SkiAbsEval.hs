@@ -44,17 +44,17 @@ step :: [Expr] -> [Expr]
 step (S : e1 : e2 : e3 : stk) = 
   let e2' = eval e2
       e3' = eval e3
-  in e2' `seq` e3' `seq` step (peel e1 ++ e3' : App e2' e3' : stk)
+  in step (peel e1 ++ e3' : App e2' e3' : stk) `try` e2' `try` e3'
 step (K : e1 : e2 : stk) = step (peel e1 ++ stk)
 step (I : e1 : stk) = step (peel e1 ++ stk)
 step (B : e1 : e2 : e3 : stk) = 
   let e2' = eval e2
       e3' = eval e3 
-  in e2' `seq` e3' `seq` step (peel e1 ++ App e2' e3' : stk)
+  in step (peel e1 ++ App e2' e3' : stk) `try` e2' `try` e3'
 step (C : e1 : e2 : e3 : stk) = 
   let e2' = eval e2
       e3' = eval e3 
-  in e2' `seq` e3' `seq` step (peel e1 ++ e3' : e2' : stk)
+  in step (peel e1 ++ e3' : e2' : stk) `try` e2' `try` e3'
 step (A : e1 : e2 : stk) = step (peel e2 ++ stk)
 step (Y : e1 : stk) = peel e1 ++ (App Y e1) : stk
 step (Add : e1 : e2 : stk) = 

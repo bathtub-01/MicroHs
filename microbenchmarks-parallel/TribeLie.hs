@@ -132,8 +132,8 @@ predicate (PuzzleAnswer p1 p2 c cd c1 c2 c3 c4) =
 
 -- challenging the stack riding scheme..    
 filter' p [] = []
-filter' p (x : xs) = let rest = filter' p xs in rest `seq` if p x then x : rest else rest
+filter' p (x : xs) = let rest = filter' p xs in (if p x then x : rest else rest) `try` rest
 
-count p xs = sum $ map (\x -> if p x then (1::Int) else 0) xs
+-- count p xs = sum $ map (\x -> if p x then (1::Int) else 0) xs
 
-main = count predicate allCombis
+main = length $ filter' predicate allCombis
