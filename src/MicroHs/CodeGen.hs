@@ -10,10 +10,7 @@ import MicroHs.Exp
 import MicroHs.Expr(Lit(..), showLit, errorMessage, HasLoc(..))
 import MicroHs.Ident(Ident(..), showIdent, mkIdent)
 import MicroHs.State
-import MicroHs.Abstract
-import MicroHs.AbstractESC(scToEsc)
-import Data.Char (isDigit)
-
+import MicroHs.AbstractESC
 
 type Arity = Int
 type Ptr = Int
@@ -65,9 +62,6 @@ expToAExp ae =
     (_, (_, rspn, racc)) = runState (expToAExp' ae) (0, [], id)
   in rspn : racc []
 
-isCombPlcHolder :: Ident -> Bool
-isCombPlcHolder n = all isDigit $ showIdent n
-
 substVar :: M.Map Exp -> Exp -> Exp
 substVar m e =
   let
@@ -85,15 +79,15 @@ findIdentIn n m = fromMaybe
   M.lookup n m
 
 -- Takes the result of abstraction, generate heap image and comb image
--- codeGen :: (Ident, [LDef]) -> ([AExp], [AExp])
+codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     removed = deadRemove (mainName, ds)
-    (heap, comb, scs) = extractCombs removed
+    (heap, comb) = extractCombs removed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns (mainName, heap) singletons
     comb' = map (expToAExp . substVar varMap) comb
-  in (heap', comb')
+  in (removed, heap', comb')
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
@@ -161,7 +155,7 @@ matchSc (Sc a1 p1 is1) (Sc a2 p2 is2) =
 matchSc _ _ = False
 
 -- extract combinators into comb table, switch to comb ptrs
-extractCombs :: [LDef] -> ([LDef], [Exp], SCRecord)
+extractCombs :: [LDef] -> ([LDef], [Exp])
 extractCombs ds =
   let
     extract :: [LDef] -> State (SCRecord, [Exp] -> [Exp], Int) [LDef]
@@ -196,8 +190,8 @@ extractCombs ds =
 
     getBody (Esc _ e) = e
 
-    (ds', (scs', comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 2)
-  in (ds', comb [], scs')
+    (ds', (_, comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 2)
+  in (ds', comb [])
 
 -- fully expand comb table
 -- expandCombs :: [Exp] -> [Exp]
@@ -220,9 +214,16 @@ extractCombs ds =
 --     -- Exp -> [Exp]
 --   in undefined
 
+l = mkIdent "l"
+h = mkIdent "h"
+ieft = mkIdent "enumFromTo"
+eft = lams [l, h] (apps ltlh [Lit (LPrim "[]"), mkL])
+ltlh = apps (Lit (LPrim "<=")) [Var l, Var h]
+pl1  = apps (Lit (LPrim "+")) [Var l, Lit (LInt 1)]
+recEnum = apps (Var ieft) [pl1, Var h]
+mkL = apps (Lit (LPrim ":")) [Var l, recEnum]
 
-
-
+eftRes = codeGen (ieft, [(ieft, compileEsc eft)])
 
 
 

@@ -135,7 +135,7 @@ lams :: [Ident] -> Exp -> Exp
 lams xs e = foldr Lam e xs
 
 apps :: Exp -> [Exp] -> Exp
-apps f = foldl App f
+apps = foldl App
 
 -- the spine of an Exp
 spine :: Exp -> (Exp, [Exp])

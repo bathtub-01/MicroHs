@@ -18,13 +18,21 @@ isPrim s ae =
     Lit (LPrim ss) -> s == ss
     _       -> False
 
-example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
+-- example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
 
-example1 = (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))
+-- example1 = Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))
 
-example2 = (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
+-- example2 = Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))
 
-exampleBig = Lam (mkIdent "a") (App (Var (mkIdent "a")) (App (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "a"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))) (Var (mkIdent "a"))))
+-- exampleBig = Lam (mkIdent "a") (App (Var (mkIdent "a")) (App (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "a"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))) (Var (mkIdent "a"))))
+
+cons = lams
+  [mkIdent "x", mkIdent "y", mkIdent "z", mkIdent "f"]
+  (apps (Var (mkIdent "f")) [Var (mkIdent "x"), Var (mkIdent "y")])
+
+cons' = lams
+  [mkIdent "f"]
+  (apps (Var (mkIdent "f")) [Var (mkIdent "x"), Var (mkIdent "y")])
 
 scI = Sc 1 X [0]
 scK = Sc 2 X [0]
@@ -89,14 +97,20 @@ compileExpEsc ae =
     Lam x f -> abstractEsc [] x f
     _       -> ae
 
+escI = scToEsc scI
+escK = scToEsc scK
+escS = scToEsc scS
+escC = scToEsc scC
+escB = scToEsc scB
+
 abstractEsc :: [Ident] -> Ident -> Exp -> Exp
 abstractEsc ids x ae =
   case ae of
-    Var y | x == y -> scToEsc scI
-    Var y | y `elem` ids -> App (scToEsc scK) ae
+    Var y | x == y -> escI
+    Var y | y `elem` ids -> App escK ae
     App f a -> combineEsc (abstractEsc ids x f) (abstractEsc ids x a)
     Lam y e -> abstractEsc ids x $ argReorder x . etaRewrite $ abstractEsc (x : ids) y e
-    -- Esc ar body | ar < 7 -> Esc (ar + 1) (mapExpOnArg (\(Arg i) -> Arg (i + 1)) body)
+    Esc ar body-> Esc (ar + 1) (mapExpOnArg (\(Arg i) -> Arg (i + 1)) body)
     _ -> Esc 1 ae
 
 combineEsc :: Exp -> Exp -> Exp
@@ -105,15 +119,65 @@ combineEsc a1 a2 =
     (c1, args1) = spine a1
     (c2, args2) = spine a2
   in case (c1, c2) of
-    (Esc ar1 bd1, Esc ar2 bd2) -> standardCombine c1 args1 c2 args2
+    (Esc ar1 bd1, Esc ar2 bd2) ->
+      if a1IsUnary && a2IsUnary then
+        standardCombine c1 args1 c2 args2
+      else if a1IsUnary then
+        if xNotUsed args2 is2 then
+          let c = Esc (ar1 + 1) (App bd1' (Arg (ar1 - 1)))
+              bd1' = mapExpOnArg (\(Arg i) -> if i == ar1 - 1 then Arg ar1 else Arg i) bd1
+          in App (foldl App c args1) (etaRewrite a2Old)
+        else
+          let c = Esc (ar1 + 1) (App bd1' (App (Arg (ar1 - 1)) (Arg ar1)))
+              bd1' = mapExpOnArg (\(Arg i) -> if i == ar1 - 1 then Arg ar1 else Arg i) bd1
+          in foldl App c (args1 ++ [etaRewrite a2])
+      else if a2IsUnary &&
+              (length (filter (== length args1 + 1) is1) <= 1 || a2 == escI) then
+        let
+          
+        in undefined
+      else addEsc c1 args1 c2 args2
+      where
+        a1IsUnary = ar1 == length args1 + 1
+        a2IsUnary = ar2 == length args2 + 1
+        is1 = pullout bd1
+        is2 = pullout bd2
+        a2Old = discardAbs c2 args2
 
+xNotUsed :: [Exp] -> [Int] -> Bool
+xNotUsed args = notElem (length args)
 
+discardAbs :: Exp -> [Exp] -> Exp
+discardAbs (Esc ar body) args =
+  let
+    redirect (Arg i)
+      | i < length args = Arg i
+      | i > length args = Arg $ i - 1
+      | otherwise = error "should not discard"
+    c' = Esc (ar - 1) (mapExpOnArg redirect body)
+    in foldl App c' args
 
-
-
-
-
-
+addEsc :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
+addEsc c1 args1 c2 args2 =
+  case (c1, c2) of
+    (Esc _ bd1, Esc _ bd2) ->
+      let
+        is1 = pullout bd1
+        is2 = pullout bd2
+        a1NotUsed = notElem (length args1) is1
+        a2NotUsed = notElem (length args2) is2
+        a1Old = etaRewrite $ discardAbs c1 args1
+        a2Old = etaRewrite $ discardAbs c2 args2
+        a1Eta = etaRewrite $ fromSpine (c1, args1) 
+        a2Eta = etaRewrite $ fromSpine (c2, args2)
+      in if a1NotUsed && a2NotUsed
+         then App escK (App a1Old a2Old)
+         else if a1NotUsed
+         then app2 escB a1Old a2Eta
+         else if a2NotUsed
+         then app2 escC a1Eta a2Old
+         else app2 escS a1Eta a2Eta
+    _ -> undefined
 
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
 standardCombine (Esc ar1 bd1) args1 (Esc ar2 bd2) args2 =
@@ -178,6 +242,7 @@ dupPair args =
       Nothing -> go es (i + 1)
     removeNth n xs = take n xs ++ drop (n + 1) xs
 
+-- pullout the list of arg pointers in this body
 pullout :: Exp -> [Int]
 pullout e =
   let

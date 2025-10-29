@@ -1,71 +1,31 @@
-[[Com 1 2,Ptr 2],[Com 1 20,Int 101,Int 200],[Com 1 20,Int 1,Int 100],[Com 1 12,Prm "<",Ptr 1,Ptr 0]]
+(EqList.main,(EqList.boolToInt (((EqList.eqList <) ((NanoPrelude.enumFromTo #1) #100)) ((NanoPrelude.enumFromTo #101) #200))))
+(EqList.boolToInt,<1,((Arg0 #0) #42)>)
+(EqList.eqList,<1,(Y (<4,((Arg2 ((Arg3 Data.Bool_Type.True) <1,<1,Data.Bool_Type.False>>)) (((<5,((Arg2 Data.Bool_Type.False) ((((<6,((Data.Bool.&& ((Arg0 Arg1) Arg4)) ((Arg2 Arg3) Arg5))> Arg0) Arg3) Arg1) Arg4))> Arg0) Arg1) Arg3))> Arg0))>)
+(Data.Bool_Type.True,<1,<1,Arg0>>)
+(Data.Bool_Type.False,<2,Arg0>)
+(Data.Bool.&&,<1,(Arg0 Data.Bool_Type.False)>)
+(NanoPrelude.enumFromTo,<2,((((<= Arg0) Arg1) Data.List_Type.[]) ((Data.List_Type.: Arg0) ((NanoPrelude.enumFromTo ((+ Arg0) #1)) Arg1)))>)
+(Data.List_Type.[],<2,Arg0>)
+(Data.List_Type.:,<3,((<3,((Arg2 Arg0) Arg1)> Arg0) Arg1)>)
+
+heap:
+[[Com 1 2,Ptr 2],[Com 2 13,Int 101,Int 200],[Com 2 13,Int 1,Int 100],[Com 1 8,Prm "<",Ptr 1,Ptr 0]]
 
 combs:
 [[Apt 0]]
 [[Apt 1]]
 [[Apt 0,Int 0,Int 42]]
-[[Com 1 16]]
+[[Com 2 11]]
 [[Com 1 3]]
-[[Com 1 18,Ptr 1,Ptr 0],[Apt 3,Apt 4,Apt 5],[Apt 0,Apt 1,Apt 2]]
-[[Com 6 5,Apt 0,Apt 1,Apt 4,Apt 2,Apt 3]]
-[[Apt 0,Com 1 16,Ptr 0],[Com 5 6,Apt 1,Apt 2,Apt 3,Apt 4]]
-[[Com 5 7,Apt 0,Apt 1,Apt 3,Apt 2]]
-[[Apt 0,Ptr 1,Ptr 0],[Com 4 8,Apt 3,Apt 1,Apt 2],[Apt 3,Com 1 14,Com 1 4]]
-[[Com 4 9,Apt 2,Apt 0,Apt 1]]
-[[Com 3 10,Apt 0,Apt 1]]
-[[Prm "Y",Ptr 0],[Com 2 11,Apt 0]]
+[[Com 1 12,Ptr 1,Ptr 0],[Apt 2,Apt 3,Apt 5],[Apt 0,Apt 1,Apt 4]]
+[[Apt 2,Com 2 11,Ptr 0],[Com 6 5,Apt 0,Apt 3,Apt 1,Apt 4]]
+[[Apt 2,Ptr 1,Ptr 0],[Com 5 6,Apt 0,Apt 1,Apt 3],[Apt 3,Com 1 10,Com 1 4]]
+[[Prm "Y",Ptr 0],[Com 4 7,Apt 0]]
 [[Apt 0]]
-[[Com 1 13]]
+[[Com 1 9]]
 [[Apt 0]]
-[[Com 2 15,Apt 0]]
-[[Apt 0,Com 1 16,Apt 1]]
-[[Com 2 17,Apt 0]]
-[[Prm "<=",Apt 0,Apt 3,Com 1 22,Ptr 2],[Prm "+",Apt 2,Int 1],[Com 1 20,Ptr 0,Apt 3],[Com 1 26,Apt 1,Ptr 1]]
-[[Com 4 19,Apt 0,Apt 0,Apt 0]]
+[[Apt 0,Com 2 11]]
+[[Prm "<=",Apt 0,Apt 1,Com 2 14,Ptr 2],[Prm "+",Apt 0,Int 1],[Com 2 13,Ptr 0,Apt 1],[Com 3 16,Apt 0,Ptr 1]]
 [[Apt 0]]
-[[Com 2 21,Apt 0]]
 [[Apt 2,Apt 0,Apt 1]]
-[[Com 3 23,Apt 0,Apt 1]]
-[[Com 3 24,Apt 0,Apt 1]]
-[[Com 2 25,Apt 0]]
-
-[[Com 1 2,Ptr 2],[Com 1 20,Int 101,Int 200],[Com 1 20,Int 1,Int 100],[Com 1 12,Prm "<",Ptr 1,Ptr 0]]
-
-combs:
-Arg0
-Arg1
-((Arg0 #0) #42)
-Data.Bool_Type.False
-<1,Ptr3>
-((Data.Bool.&& ((Arg0 Arg1) Arg2)) ((Arg3 Arg4) Arg5))
-(((((<6,Ptr5> Arg0) Arg1) Arg4) Arg2) Arg3)
-((Arg0 Data.Bool_Type.False) ((((<5,Ptr6> Arg1) Arg2) Arg3) Arg4))
-((((<5,Ptr7> Arg0) Arg1) Arg3) Arg2)
-((Arg0 ((Arg3 Data.Bool_Type.True) <1,Ptr4>)) (((<4,Ptr8> Arg3) Arg1) Arg2))
-(((<4,Ptr9> Arg2) Arg0) Arg1)
-((<3,Ptr10> Arg0) Arg1)
-(Y (<2,Ptr11> Arg0))
-Arg0
-<1,Ptr13>
-Arg0
-(<2,Ptr15> Arg0)
-((Arg0 Data.Bool_Type.False) Arg1)
-(<2,Ptr17> Arg0)
-((((<= Arg0) Arg3) Data.List_Type.[]) ((Data.List_Type.: Arg1) ((NanoPrelude.enumFromTo ((+ Arg2) #1)) Arg3)))
-(((<4,Ptr19> Arg0) Arg0) Arg0)
-Arg0
-(<2,Ptr21> Arg0)
-((Arg2 Arg0) Arg1)
-((<3,Ptr23> Arg0) Arg1)
-((<3,Ptr24> Arg0) Arg1)
-(<2,Ptr25> Arg0)
-
-(EqList.main,(FUN1 (((FUN2 <) ((FUN6 #1) #100)) ((FUN6 #101) #200))))
-(EqList.boolToInt,((<3,XXX,[2,0,1]> #0) #42))
-(EqList.eqList,((<3,X(XX),[0,1,2]> Y) (((<7,X(XXX)(XXXX),[5,6,0,1,2,3,4,6]> FUN3) (<3,X,[0]> FUN4)) ((<7,XX(XXXXX),[4,0,1,2,3,5,6]> FUN4) (<7,X(XXX)(XXX),[0,1,3,5,2,4,6]> FUN5)))))
-(Data.Bool_Type.True,<2,X,[1]>)
-(Data.Bool_Type.False,<2,X,[0]>)
-(Data.Bool.&&,(<2,XX,[1,0]> FUN4))
-(NanoPrelude.enumFromTo,((((((<8,XXXX(XX(X(XXX)X)),[0,6,7,1,2,6,3,4,6,5,7]> <=) FUN7) FUN8) FUN6) +) #1))
-(Data.List_Type.[],<2,X,[0]>)
-(Data.List_Type.:,<4,XXX,[3,0,1]>)
+[[Com 3 15,Apt 0,Apt 1]]

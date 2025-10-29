@@ -259,8 +259,13 @@ mainCompile flags mn = do
     if outFile `hasTheExtension` ".comb" then
       writeFile outFile outData
      else if outFile `hasTheExtension` ".dbg" then
-      let (heap, combs) = codeGen cmdl in do
-        writeFile outFile $ unlines (map show heap) ++ "\ncombs:\n" ++ unlines (map show combs)
+      let (removed, heap, combs) = codeGen cmdl in do
+        writeFile outFile $
+          unlines (map show removed)
+          ++ "\nheap:\n"
+          ++ unlines (map show heap)
+          ++ "\ncombs:\n"
+          ++ unlines (map show combs)
      else if outFile `hasTheExtension` ".c" then
       writeFile outFile cCode
      else if ".scala" `isSuffixOf` outFile then
