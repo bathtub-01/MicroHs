@@ -1,11 +1,12 @@
 module MicroHs.AbstractESC(
   compileEsc,
-  scToEsc
+  scToEsc,
+  pullout
   ) where
 import Prelude(); import MHSPrelude
 import MicroHs.Ident
 import MicroHs.Exp
-import MicroHs.Expr(Lit(..))
+import MicroHs.Expr(Lit(..), unEField)
 import MicroHs.State
 import Data.List
 
@@ -18,13 +19,13 @@ isPrim s ae =
     Lit (LPrim ss) -> s == ss
     _       -> False
 
--- example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
+example = Lam (mkIdent "x") (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))))
 
--- example1 = Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))
+example1 = Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z"))))
 
--- example2 = Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))
+example2 = Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "x"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))
 
--- exampleBig = Lam (mkIdent "a") (App (Var (mkIdent "a")) (App (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "a"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))) (Var (mkIdent "a"))))
+exampleBig = Lam (mkIdent "a") (App (Var (mkIdent "a")) (App (Lam (mkIdent "y") (Lam (mkIdent "z") (App (App (App (App (Var (mkIdent "x")) (Lit (LPrim "*"))) (Var (mkIdent "a"))) (Lit (LPrim "+"))) (App (App (Var (mkIdent "y")) (Lit (LPrim "*"))) (Var (mkIdent "z")))))) (Var (mkIdent "a"))))
 
 cons = lams
   [mkIdent "x", mkIdent "y", mkIdent "z", mkIdent "f"]
@@ -110,7 +111,7 @@ abstractEsc ids x ae =
     Var y | y `elem` ids -> App escK ae
     App f a -> combineEsc (abstractEsc ids x f) (abstractEsc ids x a)
     Lam y e -> abstractEsc ids x $ argReorder x . etaRewrite $ abstractEsc (x : ids) y e
-    Esc ar body-> Esc (ar + 1) (mapExpOnArg (\(Arg i) -> Arg (i + 1)) body)
+    Esc ar body-> Esc (ar + 1) (mapExpOnArgInt (+ 1) body)
     _ -> Esc 1 ae
 
 combineEsc :: Exp -> Exp -> Exp
@@ -125,24 +126,61 @@ combineEsc a1 a2 =
       else if a1IsUnary then
         if xNotUsed args2 is2 then
           let c = Esc (ar1 + 1) (App bd1' (Arg (ar1 - 1)))
-              bd1' = mapExpOnArg (\(Arg i) -> if i == ar1 - 1 then Arg ar1 else Arg i) bd1
+              bd1' = mapExpOnArgInt (\i-> if i == ar1 - 1 then ar1 else i) bd1
           in App (foldl App c args1) (etaRewrite a2Old)
         else
           let c = Esc (ar1 + 1) (App bd1' (App (Arg (ar1 - 1)) (Arg ar1)))
-              bd1' = mapExpOnArg (\(Arg i) -> if i == ar1 - 1 then Arg ar1 else Arg i) bd1
+              bd1' = mapExpOnArgInt (\i -> if i == ar1 - 1 then ar1 else i) bd1
           in foldl App c (args1 ++ [etaRewrite a2])
       else if a2IsUnary &&
-              (length (filter (== length args1 + 1) is1) <= 1 || a2 == escI) then
+              (length (filter (== lenArgs1 + 1) is1) <= 1 || a2 == escI) then
         let
-          
-        in undefined
+          mask i 
+            | i == lenArgs1 = 42
+            | i > lenArgs1 + 1 = -i
+            | otherwise = i
+          recover i
+            | i < 0 = (-i) + lenArgs2 - 1
+            | i == 42 = lenArgs1 + lenArgs2
+            | otherwise = i
+          bd' = mapExpOnArgInt recover $
+            replaceWith (mapExpOnArgInt mask bd1) (lenArgs1 + 1)
+                        (mapExpOnArgInt (+ lenArgs1) bd2)
+          c = Esc (ar1 + ar2 - 2) bd'
+        in foldl App c (args1 ++ args2)
+      else if xNotUsed args2 is2 then
+        let
+          mask i = if i == lenArgs1 then -1 else i
+          recover i = if i == -1 then lenArgs1 + 1 else i
+          bd' = mapExpOnArgInt recover $
+            replaceWith (mapExpOnArgInt mask bd1) (lenArgs1 + 1)
+                        (Arg lenArgs1)
+          c = Esc ar1 bd'
+        in App (foldl App c args1) (etaRewrite a2Old)
+      else if length (filter (== lenArgs1 + 1) is1) <= 1 then
+        let
+          mask i = if i == lenArgs1 then -1 else i
+          recover i = if i == -1 then lenArgs1 + 1 else i
+          bd' = mapExpOnArgInt recover $
+                replaceWith (mapExpOnArgInt mask bd1) (lenArgs1 + 1)
+                        (App (Arg lenArgs1) (Arg (lenArgs1 + 1)))
+          c = Esc ar1 bd'
+        in App (foldl App c args1) (etaRewrite a2)
       else addEsc c1 args1 c2 args2
       where
-        a1IsUnary = ar1 == length args1 + 1
-        a2IsUnary = ar2 == length args2 + 1
+        lenArgs1 = length args1
+        lenArgs2 = length args2
+        a1IsUnary = ar1 == lenArgs1 + 1
+        a2IsUnary = ar2 == lenArgs2 + 1
         is1 = pullout bd1
         is2 = pullout bd2
         a2Old = discardAbs c2 args2
+        replaceWith :: Exp -> Int -> Exp -> Exp
+        replaceWith old i rpl =
+          let
+            replace arg@(Arg i') | i' == i = rpl
+                                 | otherwise = arg
+          in mapExpOnArg replace old
 
 xNotUsed :: [Exp] -> [Int] -> Bool
 xNotUsed args = notElem (length args)
@@ -319,6 +357,9 @@ apply :: Exp -> [Exp] -> Exp
 apply bd args =
   mapExpOnArg sub bd
   where sub (Arg i) = args !! i
+
+mapExpOnArgInt :: (Int -> Int) -> Exp -> Exp
+mapExpOnArgInt f = mapExpOnArg (\(Arg i) -> Arg (f i))
 
 mapExpOnArg :: (Exp -> Exp) -> Exp -> Exp
 mapExpOnArg f = mapExp (onArg f)

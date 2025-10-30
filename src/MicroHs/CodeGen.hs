@@ -83,7 +83,7 @@ codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     removed = deadRemove (mainName, ds)
-    (heap, comb) = extractCombs removed
+    (heap, comb) = extractCombs $ escToSc removed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns (mainName, heap) singletons
     comb' = map (expToAExp . substVar varMap) comb
@@ -107,6 +107,21 @@ deadRemove (mainName, ds) =
     (_,(_, _, res)) = runState (dfs mainName) (0, M.empty, id)    
     idle = Var $ mkIdent "FUN"
   in res []
+
+escToSc :: [LDef] -> [LDef]
+escToSc defs =
+  let
+    toSc (App e1 e2) = App (toSc e1) (toSc e2)
+    toSc (Esc a bd)
+      | allArgs bd = Sc a (takePat bd) (pullout bd)
+      | otherwise  = Esc a (toSc bd)
+    toSc e = e
+    allArgs (App e1 e2) = allArgs e1 && allArgs e2
+    allArgs (Arg _) = True
+    allArgs _ = False
+    takePat (App e1 e2) = At (takePat e1) (takePat e2)
+    takePat _ = X
+  in map (\(i, e) -> (i, toSc e)) defs
 
 collectSingleton :: [LDef] -> M.Map Exp
 collectSingleton defs =
@@ -150,8 +165,8 @@ defaultCombs :: [Exp] -> [Exp]
 defaultCombs = ([Arg 0, Arg 1] ++)
 
 matchSc :: Exp -> Exp -> Bool
-matchSc (Sc a1 p1 is1) (Sc a2 p2 is2) =
-  a1 == a2 && p1 == p2 && is1 == is2
+matchSc (Sc _ p1 is1) (Sc _ p2 is2) =
+  p1 == p2 && is1 == is2
 matchSc _ _ = False
 
 -- extract combinators into comb table, switch to comb ptrs
@@ -193,27 +208,6 @@ extractCombs ds =
     (ds', (_, comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 2)
   in (ds', comb [])
 
--- fully expand comb table
--- expandCombs :: [Exp] -> [Exp]
--- expandCombs combs =
---   let
---     expand :: Exp -> State(SCRecord, [Exp] -> [Exp], Int) Exp
---     expand = undefined
---     expand' :: Exp -> State(SCRecord, [Exp] -> [Exp], Int) (Exp, [Exp])
---     expand' (App e1 e2) = do
---       (ee1, dirty1) <- expand' e1
---       (ee2, dirty2) <- expand' e2
---       return (App ee1 ee2, dirty1 ++ dirty2)
---     expand' sc@(Sc a _ _) = do
---       (scs, es, len) <- get
---       case find (\(e, _) -> matchSc sc e) scs of
---         Nothing -> do
---           put (scs, es . (getBody (scToEsc sc) :), len + 1)
---           return (Esc a (Cbp len), [])
---     -- Exp -> (Exp, [Exp])
---     -- Exp -> [Exp]
---   in undefined
-
 l = mkIdent "l"
 h = mkIdent "h"
 ieft = mkIdent "enumFromTo"
@@ -223,21 +217,4 @@ pl1  = apps (Lit (LPrim "+")) [Var l, Lit (LInt 1)]
 recEnum = apps (Var ieft) [pl1, Var h]
 mkL = apps (Lit (LPrim ":")) [Var l, recEnum]
 
-eftRes = codeGen (ieft, [(ieft, compileEsc eft)])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
+eftRes = codeGen (ieft, [(ieft, compileEsc eft)])  
