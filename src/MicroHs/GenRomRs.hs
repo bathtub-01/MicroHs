@@ -8,8 +8,8 @@ import MicroHs.Exp
 import MicroHs.Expr(Lit(..), showLit, errorMessage, HasLoc(..))
 import MicroHs.Ident(Ident(..), showIdent, mkIdent)
 import MicroHs.State
-import MicroHs.Abstract
 import MicroHs.GenRom(getPatNum,inlineSingle,finalEtaApply,freeText)
+import MicroHs.CodeGen
 
 -- generate ROM file for the Rust simulator
 
@@ -23,8 +23,8 @@ header = "\
 
 lazyLockProg :: String -> (String -> String) -> (String -> String)
 lazyLockProg name r =
-  (("#[rustfmt::skip]\npub static " ++ name ++": LazyLock<Program> = LazyLock::new(|| {\n") ++) . r .
-  ("\n});" ++)
+  (("#[rustfmt::skip]\npub static " ++ name ++": LazyLock<Program> = LazyLock::new(|| { Program {\n") ++) . r .
+  ("\n}});" ++)
 
 indentation :: Int -> String -> (String -> String)
 indentation level s = ((replicate (level * 4) ' ' ++ s) ++)
@@ -48,36 +48,35 @@ atomIndent :: String -> String -> String
 atomIndent = indentation 3
 
 -- atoms
-comb :: Int -> Pat -> [Int] -> (String -> String)
-comb art p is =
-  atomIndent ("COM(" ++ show art ++ "," ++ show p ++ ","
-              ++ listPrint isExt ++ "),\n")
-  where
-    holes = 6 -- FIXME: better be configured
-    isExt = is ++ replicate (holes - length is) 0
+comb :: Int -> Int -> (String -> String)
+comb art p =
+  atomIndent ("COM(" ++ show art ++ "," ++ show p ++ "," ++ "),\n")
 
-primConvert :: String -> (String, String)
-primConvert "==" = ("EQ", "false")
-primConvert "/=" = ("EQ", "true")
-primConvert "<=" = ("LE", "false")
-primConvert ">" = ("LE", "true")
-primConvert "<" = ("LT", "false")
-primConvert ">=" = ("LT", "true")
-primConvert "+" = ("ADD", "false")
-primConvert "-" = ("SUB", "false")
-primConvert "*" = ("MUL", "false")
+opConvert :: String -> (String, String)
+opConvert "==" = ("EQ", "false")
+opConvert "/=" = ("EQ", "true")
+opConvert "<=" = ("LE", "false")
+opConvert ">" = ("LE", "true")
+opConvert "<" = ("LT", "false")
+opConvert ">=" = ("LT", "true")
+opConvert "+" = ("ADD", "false")
+opConvert "-" = ("SUB", "false")
+opConvert "*" = ("MUL", "false")
 
-ptr :: Int -> (String -> String)
-ptr n =
-  atomIndent ("PTR(" ++ show n ++ ", false),\n")
+ptr :: Int -> Bool -> (String -> String)
+ptr n oc = if oc
+  then atomIndent ("PTR(" ++ show n ++ ", true, true),\n")
+  else atomIndent ("PTR(" ++ show n ++ ", false, false),\n")
+
+arg :: Int -> (String -> String)
+arg n = atomIndent ("ARG(" ++ show n ++ "),\n")
 
 int :: Int -> (String -> String)
-int n =
-  atomIndent ("INT(" ++ show n ++ "),\n")
+int n = atomIndent ("INT(" ++ show n ++ "),\n")
 
 prim :: String -> (String -> String)
 prim op =
-  let (code, rev) = primConvert op
+  let (code, rev) = opConvert op
   in atomIndent ("PRM(" ++ code ++ "," ++ rev ++ "),\n")
 
 y :: String -> String
@@ -96,88 +95,83 @@ listPrint xs = "[" ++ inner ++ "]"
   where
     inner = concat $ zipWith (\x y -> show x ++ y) xs (replicate (length xs - 1) "," ++ [""])
 
-genRomRs :: String -> (Ident, [LDef]) -> String
-genRomRs progName (mainName, ldefs) =
+genRomRs :: String -> ([AExp], [AExp]) -> String
+genRomRs progName (heap, cmb) =
+  let          
+    (heap', cmb') = serialise heap cmb
+    heapStr = putAExpList heap'
+    cmbStr = putAExpList cmb'
+  in header
+     -- ++ "// Functions in this file: " ++ show funCount ++ "\n"
+     -- ++ "// Apps in this file: " ++ show appCount ++ "\n"
+     -- ++ "// Combinators in this file: " ++ show combCount ++ "\n"
+     ++ lazyLockProg progName (heapStr . cmbStr) ""
+
+serialise :: [AExp] -> [AExp] -> ([AExp], [AExp])
+serialise heap cmb =
   let
-    ds = finalEtaApply $ inlineSingle ldefs
-    dMap = M.fromList ds
-    -- state: 1. fun counter; 2. app counter; 3. comb counter; 4. function map; 5. resulting string
-    dfs :: Ident -> State (Int, Int, Int, M.Map Exp, String -> String) ()
-    dfs n = do
-      (i, ptr, combs, seen, r) <- get
-      case M.lookup n seen of
-        Just _ -> return ()
-        Nothing -> do
-          let e = findIdentIn n dMap
-          put (i, ptr + 1, combs, M.insert n (ref ptr) seen, r)
-          -- print this function
-          buildFunc (substv e) (showIdent n)
-          (i', ptr', combs', seen', r') <- get
-          put (i + 1, ptr', combs', seen', r')
-          -- Walk n's children
-          mapM_ dfs $ freeVars e
+    htbl = entryTable heap
+    ctbl = entryTable cmb
+    walk _ (Com a p) = Com a $ ctbl !! p
+    walk _ (Fun p) = Fun $ htbl !! p
+    walk n (Ptr p b) | b = Ptr p b
+                     | otherwise = Ptr (p + htbl !! n) b
+    walk _ a = a
+    mapWalk :: [AExp] -> [AExp]
+    mapWalk aes = map (\(ae, i) -> map (map (walk i)) ae) (zip aes [0..])
+  in (mapWalk heap, mapWalk cmb)
 
-    (_, (funCount, appCount, combCount, defs, res)) = runState (dfs mainName) (0, 0, 0, M.empty, freeText "")
-    ref i = Var $ mkIdent $ "PTR" ++ show i
-    findIdentIn n m = fromMaybe (errorMessage (getSLoc n) $ "No definition found for: " ++ showIdent n) $
-                      M.lookup n m
-    findIdent n = findIdentIn n defs
-    substv aexp =
-      case aexp of
-        Var n -> findIdent n
-        App f a -> App (substv f) (substv a)
-        e -> e
-  in header ++
-     "// Functions in this file: " ++ show funCount ++ "\n"
-     ++ "// Apps in this file: " ++ show appCount ++ "\n"
-     ++ "// Combinators in this file: " ++ show combCount ++ "\n"
-     ++ lazyLockProg progName (vecS res) ""
+entryTable :: [[a]] -> [Int]
+entryTable ass =
+  let
+    walk :: [[a]] -> Int -> [Int]
+    walk [] _ = []
+    walk (x:xs) ctr = ctr : walk xs (ctr + length x)
+  in walk ass 0
 
-buildFunc :: Exp -> String -> State (Int, Int, Int, M.Map Exp, String -> String) ()
-buildFunc e name = do
-  (i, ptr, combs, seen, r) <- get
-  let (_, (ptr', combs', spn, aps)) = runState (buildExp e) (ptr, combs, freeText "", [])
-  put (i, ptr', combs',
-       seen, r
-        . indentation 2 (" // FUN" ++ show i ++ name  ++ "\n")
-        . app (ptr - 1) spn
-        . foldr (.) (freeText "") aps)
+putAExpList :: [AExp] -> (String -> String)
+putAExpList aes = let
+  ((), (_, _, _, r)) = runState (mapM_ putAExp aes) (0, 0, 0, id)
+  in vecS r
 
--- state: 1. ptr counter; 2. comb counter; 3. current spine; 4. apps
-buildExp :: Exp -> State (Int, Int, String -> String, [String -> String]) ()
-buildExp e = do
-  (i, combs, s, as) <- get
-  case e of
-    App f (App a1 a2) -> do
-      put (i, combs, freeText "", as)
-      buildExp (App a1 a2)
-      (i', combs', s', as') <- get
-      put (i' + 1, combs', ptr i' . s, as' ++ [app i' s'])
-      buildExp f
-    App f a -> do
-      let combs' =
-            case a of
-              Sc _ _ _ -> combs + 1
-              _ -> combs
-      put(i, combs', atom a . s, as)
-      buildExp f
-    _ -> do
-      let combs' =
-            case e of
-              Sc _ _ _ -> combs + 1
-              _ -> combs
-      put(i, combs', atom e . s, as)
 
-atom :: Exp -> (String -> String)
-atom ae =
-  case ae of
-    Var i -> if "PTR" `isPrefixOf` showIdent i then ptr $ read (drop 3 (showIdent i))
-               else error "Strange Var exists."
-    Lit (LInt i) -> int i
-    Lit (LPrim "Y") -> y
-    Lit (LPrim "seq") -> seqStr
-    Lit (LPrim op) -> if "error" `isPrefixOf` op then err $ read (drop 5 op)
-                        else prim op
-    Lit _ -> error "Strange Lit exists."
-    Sc a p is -> comb a p is
-    _ -> error "Not an Atom."
+putAExp :: AExp -> State (Int, Int, Int, String -> String) ()
+putAExp ae = do
+  mapM_ putApp ae
+  (c1, c2, c3, r) <- get
+  put (c1 + 1, c2, c3, r)
+
+putApp :: App -> State (Int, Int, Int, String -> String) ()
+putApp ap = do
+  (c1, c2, c3, r) <- get
+  put (c1, c2, c3, id)
+  mapM_ putAtom ap
+  (c1', c2', c3', r') <- get
+  put (c1', c2' + 1, c3', r . vecS r')
+
+putAtom :: Atom -> State (Int, Int, Int, String -> String) ()
+putAtom atm =
+  let
+    atom (Prm s) = y
+    atom (Int i) = int i
+    atom (Com a p) = comb a p
+    atom (Fun p) = ptr p False
+    atom (Ptr p hc) = ptr p hc
+    atom (Apt p) = arg p
+  in do
+  (c1, c2, c3, r) <- get  
+  put (c1, c2, c3 + 1, r . atom atm)
+
+-- atom :: Exp -> (String -> String)
+-- atom ae =
+--   case ae of
+--     Var i -> if "PTR" `isPrefixOf` showIdent i then ptr $ read (drop 3 (showIdent i))
+--                else error "Strange Var exists."
+--     Lit (LInt i) -> int i
+--     Lit (LPrim "Y") -> y
+--     Lit (LPrim "seq") -> seqStr
+--     Lit (LPrim op) -> if "error" `isPrefixOf` op then err $ read (drop 5 op)
+--                         else prim op
+--     Lit _ -> error "Strange Lit exists."
+--     Sc a p is -> comb a p is
+--     _ -> error "Not an Atom."

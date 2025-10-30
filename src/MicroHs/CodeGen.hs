@@ -1,6 +1,4 @@
-module MicroHs.CodeGen (
-  codeGen,
-  deadRemove) where
+module MicroHs.CodeGen where
 import Prelude(); import MHSPrelude
 import Data.List
 import qualified MicroHs.IdentMap as M
@@ -19,10 +17,10 @@ type Ptr = Int
 data Atom
   = Prm String -- Y, seq, operators and other `LPrim`
   | Int Int
-  | Com Arity Ptr
-  | Fun Ptr
-  | Ptr Ptr
-  | Apt Ptr
+  | Com Arity Ptr -- Pointer to the comb image
+  | Fun Ptr -- Pointer to the heap image
+  | Ptr Ptr Bool -- Pointer to other Apps within AExp
+  | Apt Ptr -- Argument pointer
   deriving(Show)
   
 type App = [Atom]
@@ -40,8 +38,8 @@ expToAtom ae =
     Arg i -> Apt i
     _ -> error $ "Not an Atom: " ++ show ae
 
-expToAExp :: Exp -> AExp
-expToAExp ae =
+expToAExp :: Bool -> Exp -> AExp
+expToAExp onComb ae =
   let
     -- states: 1. ptr counter; 2. current spine; 3. accumulator
     expToAExp' :: Exp -> State (Int, App, [App] -> [App]) ()
@@ -52,7 +50,7 @@ expToAExp ae =
           put (i, [], acc)
           expToAExp' nt
           (i', spn', acc') <- get
-          put (i' + 1, Ptr i' : spn, acc' . (spn' :))
+          put (i' + 1, Ptr i' onComb : spn, acc' . (spn' :))
           expToAExp' f
         App f a -> do
           put (i, expToAtom a : spn, acc)
@@ -86,7 +84,7 @@ codeGen (mainName, ds) =
     (heap, comb) = extractCombs $ escToSc removed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns (mainName, heap) singletons
-    comb' = map (expToAExp . substVar varMap) comb
+    comb' = map (expToAExp True . substVar varMap) comb
   in (removed, heap', comb')
 
 -- remove unused definitions
@@ -151,7 +149,7 @@ numberFuns (mainName, ds) mp =
           mapM_ dfs $ freeVars e
     (_,(_, m, res)) = runState (dfs mainName) (0, mp, id)
     ref i = Var $ mkIdent $ "FUN" ++ show i
-  in (map expToAExp $ res [], m)
+  in (map (expToAExp False) $ res [], m)
 
 type SCRecord = [(Exp, Int)]
 

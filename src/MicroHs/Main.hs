@@ -271,7 +271,8 @@ mainCompile flags mn = do
      else if ".scala" `isSuffixOf` outFile then
       writeFile outFile $ genRomOScala (takeWhile (/= '.') outFile) cmdl
      else if ".rs" `isSuffixOf` outFile then
-      writeFile outFile $ genRomRs (map toUpper $ takeWhile (/= '.') outFile) cmdl
+      let (_, heap, combs) = codeGen cmdl in
+      writeFile outFile $ genRomRs (map toUpper $ takeWhile (/= '.') outFile) (heap, combs)
      else do
        (fn, h) <- openTmpFile "mhsc.c"
        hPutStr h cCode
