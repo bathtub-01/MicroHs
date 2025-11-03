@@ -9,6 +9,7 @@ import MicroHs.Expr(Lit(..), showLit, errorMessage, HasLoc(..))
 import MicroHs.Ident(Ident(..), showIdent, mkIdent)
 import MicroHs.State
 import MicroHs.AbstractESC
+import MicroHs.IdentMap (toList)
 
 type Arity = Int
 type Ptr = Int
@@ -77,15 +78,16 @@ findIdentIn n m = fromMaybe
   M.lookup n m
 
 -- Takes the result of abstraction, generate heap image and comb image
-codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
+-- codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     removed = deadRemove (mainName, ds)
     (heap, comb) = extractCombs $ escToSc removed
     singletons = collectSingleton heap
-    (heap', varMap) = numberFuns (mainName, heap) singletons
+    (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
   in (removed, heap', comb')
+  -- in (removed, heap, toList varMap)
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
@@ -133,9 +135,16 @@ collectSingleton defs =
 
 -- switch to index from Ident for function calls, turn into AExp
 -- will also strip off unused defs (caused by inlineSingleton)
-numberFuns :: (Ident, [LDef]) -> M.Map Exp -> ([AExp], M.Map Exp)
-numberFuns (mainName, ds) mp =
+numberFuns :: [Exp] -> (Ident, [LDef]) -> M.Map Exp -> ([AExp], M.Map Exp)
+numberFuns combs (mainName, ds) mp =
   let
+    trackVars :: Exp -> [Ident]
+    trackVars ae =
+      case ae of
+        Var i -> [i]
+        App f a -> trackVars f ++ trackVars a
+        Esc _ (Cbp p) -> trackVars $ combs !! p -- WARNING: infinity?
+        _ -> []
     dMap = M.fromList ds
     dfs :: Ident -> State (Int, M.Map Exp, [Exp] -> [Exp]) ()
     dfs n = do
@@ -146,10 +155,13 @@ numberFuns (mainName, ds) mp =
           let e = findIdentIn n dMap
           put (i+1, M.insert n (ref i) seen,  r . (substVar m e :))
           -- Walk n's children
-          mapM_ dfs $ freeVars e
-    (_,(_, m, res)) = runState (dfs mainName) (0, mp, id)
+          mapM_ dfs $ trackVars e
+    sgls :: Exp -> State (Int, M.Map Exp, [Exp] -> [Exp]) ()
+    sgls e = do mapM_ dfs $ trackVars e      
+    (_,(ctr, m, res)) = runState (dfs mainName) (0, mp, id)
+    (_,(_, m', res')) = runState (mapM_ (\(_, e) -> sgls e) (toList mp)) (ctr, m, res)
     ref i = Var $ mkIdent $ "FUN" ++ show i
-  in (map (expToAExp False) $ res [], m)
+  in (map (expToAExp False) $ res' [], m')
 
 type SCRecord = [(Exp, Int)]
 

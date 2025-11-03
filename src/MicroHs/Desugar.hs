@@ -28,6 +28,7 @@ import MicroHs.TypeCheck
 
 type LDef = (Ident, Exp)
 
+-- By not using "lazier", can avoid extra Ys
 desugar :: Flags -> TModule [EDef] -> TModule [LDef]
 desugar flags tm =
   setBindings tm (map lazier $ checkDup $ concatMap (dsDef flags (tModuleName tm)) (tBindingsOf tm))

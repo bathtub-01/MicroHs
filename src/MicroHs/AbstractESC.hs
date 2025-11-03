@@ -133,7 +133,8 @@ combineEsc a1 a2 =
               bd1' = mapExpOnArgInt (\i -> if i == ar1 - 1 then ar1 else i) bd1
           in foldl App c (args1 ++ [etaRewrite a2])
       else if a2IsUnary &&
-              (length (filter (== lenArgs1 + 1) is1) <= 1 || a2 == escI) then
+              (length (filter (== lenArgs1 + 1) is1) <= 1 || a2 == escI) &&
+              nestedApp bd2 == 0 then
         let
           mask i 
             | i == lenArgs1 = 42
@@ -185,14 +186,19 @@ combineEsc a1 a2 =
 xNotUsed :: [Exp] -> [Int] -> Bool
 xNotUsed args = notElem (length args)
 
+nestedApp :: Exp -> Int
+nestedApp (App e1 e2@(App _ _)) = nestedApp e1 + nestedApp e2 + 1
+nestedApp (App e1 e2) = nestedApp e1 + nestedApp e2
+nestedApp _ = 0
+
 discardAbs :: Exp -> [Exp] -> Exp
 discardAbs (Esc ar body) args =
   let
-    redirect (Arg i)
-      | i < length args = Arg i
-      | i > length args = Arg $ i - 1
+    redirect i
+      | i < length args = i
+      | i > length args = i - 1
       | otherwise = error "should not discard"
-    c' = Esc (ar - 1) (mapExpOnArg redirect body)
+    c' = Esc (ar - 1) (mapExpOnArgInt redirect body)
     in foldl App c' args
 
 addEsc :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
@@ -218,12 +224,29 @@ addEsc c1 args1 c2 args2 =
     _ -> undefined
 
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
-standardCombine (Esc ar1 bd1) args1 (Esc ar2 bd2) args2 =
-  let
-    c = Esc (ar1 + ar2 - 1) (App (mapExpOnArg redirect1 bd1) (mapExpOnArg redirect2 bd2))
-    redirect1 a@(Arg i) = if i == ar1 - 1 then Arg (ar1 + ar2 - 2) else a
-    redirect2 (Arg i) = Arg (i + length args1)
+standardCombine (Esc ar1 bd1) args1 c2@(Esc ar2 bd2) args2 =
+  if nestedApp bd2 == 0 then
+  -- if True then
+    let
+      c = Esc (ar1 + ar2 - 1) (App (mapExpOnArgInt redirect1 bd1) (mapExpOnArgInt redirect2 bd2))
+      redirect1 i = if i == ar1 - 1 then ar1 + ar2 - 2 else i
+      redirect2 i = i + length args1
     in foldl App c (args1 ++ args2)
+  else if xNotUsed args2 is2 then
+    let
+      c = Esc (ar1 + 1) (App (mapExpOnArgInt redirect bd1) (Arg (length args1)))
+      redirect i = if i == ar1 - 1 then ar1 else i
+    in foldl App c (args1 ++ [etaRewrite a2Old])
+  else
+    let
+      c = Esc (ar1 + 1)
+        (App (mapExpOnArgInt redirect bd1) (App (Arg (length args1)) (Arg (length args1 + 1))))
+      redirect i = if i == ar1 - 1 then ar1 else i
+    in foldl App c (args1 ++ [etaRewrite a2])
+  where    
+    is2 = pullout bd2
+    a2 = fromSpine (c2, args2)
+    a2Old = discardAbs c2 args2
 
 argReorder :: Ident -> Exp -> Exp
 argReorder x ae =

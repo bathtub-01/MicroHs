@@ -1,0 +1,13 @@
+(EqList.main,(EqList.boolToInt (((EqList.eqList <) ((NanoPrelude.enumFromTo #1) #100)) ((NanoPrelude.enumFromTo #101) #200))))
+(EqList.boolToInt,<1,((Arg0 #0) #42)>)
+(EqList.eqList,(<2,(Y (Arg0 Arg1))> ((<6,((Arg4 ((Arg5 Data.Bool_Type.True) Arg0)) (((Arg1 Arg2) Arg3) Arg5))> <2,Data.Bool_Type.False>) (<6,((Arg3 Data.Bool_Type.False) ((((Arg0 Arg1) Arg2) Arg4) Arg5))> <6,((Data.Bool.&& ((Arg0 Arg2) Arg4)) ((Arg1 Arg3) Arg5))>))))
+(Data.Bool_Type.True,<2,Arg1>)
+(Data.Bool_Type.False,<2,Arg0>)
+(Data.Bool.&&,<1,(Arg0 Data.Bool_Type.False)>)
+(NanoPrelude.enumFromTo,(<3,((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))> <2,((Data.List_Type.: Arg0) ((NanoPrelude.enumFromTo ((+ Arg0) #1)) Arg1))>))
+(Data.List_Type.[],<2,Arg0>)
+(Data.List_Type.:,<4,((Arg3 Arg0) Arg1)>)
+
+heap:
+
+combs:
