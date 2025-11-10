@@ -1,63 +1,76 @@
 (Mss.main,(Mss.mss ((NanoPrelude.enumFromTo ((- #0) #20)) #20)))
 (Mss.mss,(<2,(NanoPrelude.maximum (Arg0 Arg1))> <1,((NanoPrelude.map NanoPrelude.sum) (Mss.segments Arg0))>))
 (NanoPrelude.maximum,(<2,((Arg1 #0) (NanoPrelude.foldr Arg0))> <2,((((> Arg0) Arg1) Arg1) Arg0)>))
-(NanoPrelude.foldr,(<3,(Y ((Arg0 Arg1) Arg2))> (<5,((Arg4 Arg2) ((Arg0 Arg1) Arg3))> <4,((Arg0 Arg2) (Arg1 Arg3))>)))
+(NanoPrelude.foldr,(<3,(Y ((Arg0 Arg1) Arg2))> (<5,XX(XXX),[4,2,0,1,3]> <4,XX(XX),[0,2,1,3]>)))
 (NanoPrelude.map,(<2,(Y (Arg0 Arg1))> (<4,((Arg3 Data.List_Type.[]) ((Arg0 Arg1) Arg2))> <4,((Data.List_Type.: (Arg0 Arg2)) (Arg1 Arg3))>)))
-(Data.List_Type.[],<2,Arg0>)
-(Data.List_Type.:,<4,((Arg3 Arg0) Arg1)>)
+(Data.List_Type.[],<2,X,[0]>)
+(Data.List_Type.:,<4,XXX,[3,0,1]>)
 (NanoPrelude.sum,((NanoPrelude.foldr +) #0))
 (Mss.segments,<1,((Data.List_Type.concatMap Mss.tails) (Mss.inits Arg0))>)
 (Data.List_Type.concatMap,(<2,(Y (Arg0 Arg1))> (<4,((Arg3 Data.List_Type.[]) ((Arg0 Arg1) Arg2))> <4,((Data.List_Type.++ (Arg0 Arg2)) (Arg1 Arg3))>)))
-(Data.List_Type.++,(<3,((Y (Arg0 Arg2)) Arg1)> (<4,((Arg3 Arg1) (Arg0 Arg2))> <3,((Data.List_Type.: Arg1) (Arg0 Arg2))>)))
+(Data.List_Type.++,(<3,((Y (Arg0 Arg2)) Arg1)> (<4,XX(XX),[3,1,0,2]> <3,((Data.List_Type.: Arg1) (Arg0 Arg2))>)))
 (Mss.tails,(<2,((Arg1 Data.List_Type.[]) Arg0)> <2,((Data.List_Type.: ((Data.List_Type.: Arg0) Arg1)) (Mss.tails Arg1))>))
 (Mss.inits,(<2,((Arg1 ((<4,XXX,[3,0,1]> Data.List_Type.[]) <2,X,[0]>)) (Arg0 Arg1))> (<4,((Data.List_Type.: Arg1) (Arg0 Arg1))> <1,(Mss.inits (NanoPrelude.init Arg0))>)))
 (NanoPrelude.init,(<2,((Arg1 error1) Arg0)> (<3,((Arg2 Data.List_Type.[]) ((Arg0 Arg1) Arg2))> <4,((Data.List_Type.: Arg0) (NanoPrelude.init Arg1))>)))
 (NanoPrelude.enumFromTo,(<3,((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))> (<3,((Data.List_Type.: Arg1) ((Arg0 Arg1) Arg2))> <1,(NanoPrelude.enumFromTo ((+ Arg0) #1))>)))
 
 heap:
-[[Fun 1,Ptr 1 False],[Prm "-",Int 0,Int 20],[Fun 6,Ptr 0 False,Int 20]]
-[[Com 2 2,Com 1 3]]
-[[Com 2 4,Com 2 5]]
-[[Com 3 6,Ptr 0 False],[Com 5 7,Com 4 8]]
-[[Com 2 9,Ptr 0 False],[Com 4 10,Com 4 11]]
-[[Fun 3,Prm "+",Int 0]]
-[[Com 3 29,Ptr 0 False],[Com 3 30,Com 1 31]]
-[[Com 2 14,Ptr 0 False],[Com 4 15,Com 4 16]]
-[[Com 3 17,Ptr 0 False],[Com 4 18,Com 3 19]]
-[[Com 2 20,Com 2 21]]
-[[Com 2 23,Ptr 0 False],[Com 4 24,Com 1 25]]
-[[Com 2 26,Ptr 0 False],[Com 3 27,Com 4 28]]
+(Mss.main,(Mss.mss ((NanoPrelude.enumFromTo ((- #0) #20)) #20)))
+(Mss.mss,(<2,Cbp2> <1,Cbp3>))
+(NanoPrelude.maximum,(<2,Cbp4> <2,Cbp5>))
+(NanoPrelude.foldr,(<3,Cbp6> (<5,Cbp7> <4,Cbp8>)))
+(NanoPrelude.map,(<2,Cbp9> (<4,Cbp10> <4,Cbp11>)))
+(Data.List_Type.[],<2,Cbp0>)
+(Data.List_Type.:,<4,Cbp12>)
+(NanoPrelude.sum,((NanoPrelude.foldr +) #0))
+(Mss.segments,<1,Cbp13>)
+(Data.List_Type.concatMap,(<2,Cbp14> (<4,Cbp15> <4,Cbp16>)))
+(Data.List_Type.++,(<3,Cbp17> (<4,Cbp18> <3,Cbp19>)))
+(Mss.tails,(<2,Cbp20> <2,Cbp21>))
+(Mss.inits,(<2,Cbp22> (<4,Cbp23> <1,Cbp24>)))
+(NanoPrelude.init,(<2,Cbp25> (<3,Cbp26> <4,Cbp27>)))
+(NanoPrelude.enumFromTo,(<3,Cbp28> (<3,Cbp29> <1,Cbp30>)))
 
 combs:
-[[Apt 0]]
-[[Apt 1]]
-[[Fun 2,Ptr 0 True],[Apt 0,Apt 1]]
-[[Fun 4,Fun 5,Ptr 0 True],[Com 1 13,Apt 0]]
-[[Apt 1,Int 0,Ptr 0 True],[Fun 3,Apt 0]]
-[[Prm ">",Apt 0,Apt 1,Apt 1,Apt 0]]
-[[Prm "Y",Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Apt 4,Apt 2,Ptr 0 True],[Apt 0,Apt 1,Apt 3]]
-[[Apt 0,Apt 2,Ptr 0 True],[Apt 1,Apt 3]]
-[[Prm "Y",Ptr 0 True],[Apt 0,Apt 1]]
-[[Apt 3,Com 2 0,Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Com 4 12,Ptr 1 True,Ptr 0 True],[Apt 1,Apt 3],[Apt 0,Apt 2]]
-[[Apt 3,Apt 0,Apt 1]]
-[[Fun 7,Fun 9,Ptr 0 True],[Fun 10,Apt 0]]
-[[Prm "Y",Ptr 0 True],[Apt 0,Apt 1]]
-[[Apt 3,Com 2 0,Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Fun 8,Ptr 1 True,Ptr 0 True],[Apt 1,Apt 3],[Apt 0,Apt 2]]
-[[Prm "Y",Ptr 0 True,Apt 1],[Apt 0,Apt 2]]
-[[Apt 3,Apt 1,Ptr 0 True],[Apt 0,Apt 2]]
-[[Com 4 12,Apt 1,Ptr 0 True],[Apt 0,Apt 2]]
-[[Apt 1,Com 2 0,Apt 0]]
-[[Com 4 12,Ptr 1 True,Ptr 0 True],[Fun 9,Apt 1],[Com 4 12,Apt 0,Apt 1]]
-[[Apt 3,Apt 0,Apt 1]]
-[[Apt 1,Ptr 1 True,Ptr 0 True],[Apt 0,Apt 1],[Com 4 22,Com 2 0,Com 2 0]]
-[[Com 4 12,Apt 1,Ptr 0 True],[Apt 0,Apt 1]]
-[[Fun 10,Ptr 0 True],[Fun 11,Apt 0]]
-[[Apt 1,Prm "error1",Apt 0]]
-[[Apt 2,Com 2 0,Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Com 4 12,Apt 0,Ptr 0 True],[Fun 11,Apt 1]]
-[[Prm "<=",Apt 1,Apt 2,Com 2 0,Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Com 4 12,Apt 1,Ptr 0 True],[Apt 0,Apt 1,Apt 2]]
-[[Fun 6,Ptr 0 True],[Prm "+",Apt 0,Int 1]]
+Arg0
+Arg1
+(NanoPrelude.maximum (Arg0 Arg1))
+((NanoPrelude.map NanoPrelude.sum) (Mss.segments Arg0))
+((Arg1 #0) (NanoPrelude.foldr Arg0))
+((((> Arg0) Arg1) Arg1) Arg0)
+(Y ((Arg0 Arg1) Arg2))
+((Arg4 Arg2) ((Arg0 Arg1) Arg3))
+((Arg0 Arg2) (Arg1 Arg3))
+(Y (Arg0 Arg1))
+((Arg3 Data.List_Type.[]) ((Arg0 Arg1) Arg2))
+((Data.List_Type.: (Arg0 Arg2)) (Arg1 Arg3))
+((Arg3 Arg0) Arg1)
+((Data.List_Type.concatMap Mss.tails) (Mss.inits Arg0))
+(Y (Arg0 Arg1))
+((Arg3 Data.List_Type.[]) ((Arg0 Arg1) Arg2))
+((Data.List_Type.++ (Arg0 Arg2)) (Arg1 Arg3))
+((Y (Arg0 Arg2)) Arg1)
+((Arg3 Arg1) (Arg0 Arg2))
+((Data.List_Type.: Arg1) (Arg0 Arg2))
+((Arg1 Data.List_Type.[]) Arg0)
+((Data.List_Type.: ((Data.List_Type.: Arg0) Arg1)) (Mss.tails Arg1))
+((Arg1 ((<4,Cbp12> Data.List_Type.[]) <2,Cbp0>)) (Arg0 Arg1))
+((Data.List_Type.: Arg1) (Arg0 Arg1))
+(Mss.inits (NanoPrelude.init Arg0))
+((Arg1 error1) Arg0)
+((Arg2 Data.List_Type.[]) ((Arg0 Arg1) Arg2))
+((Data.List_Type.: Arg0) (NanoPrelude.init Arg1))
+((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))
+((Data.List_Type.: Arg1) ((Arg0 Arg1) Arg2))
+(NanoPrelude.enumFromTo ((+ Arg0) #1))
+
+
+
+
+foldr f z xs
+(<3,(Y ((Arg0 Arg1) Arg2))> (<5,XX(XXX),[4,2,0,1,3]> <4,XX(XX),[0,2,1,3]>)) f z xs
+Y (<5,XX(XXX),[4,2,0,1,3]> <4,XX(XX),[0,2,1,3]> f z) xs
+<5,XX(XXX),[4,2,0,1,3]> <4,XX(XX),[0,2,1,3]> f z (Y SELF) xs
+xs z (<4,XX(XX),[0,2,1,3]>, f, (Y SELF))
+<4,XX(XX),[0,2,1,3]>, f, (Y SELF) x xs
+f x (Y SELF xs)

@@ -84,7 +84,7 @@ ppExp ae =
                      ++ ">"
     Esc a b -> text ("<" ++ show a ++ ",") <> ppExp b <> text ">"
     Arg i -> text ("Arg" ++ show i)
-    Cbp p -> text ("Ptr" ++ show p)
+    Cbp p -> text ("Cbp" ++ show p)
 
 substExp :: Ident -> Exp -> Exp -> Exp
 substExp si se ae =

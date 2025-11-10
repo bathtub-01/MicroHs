@@ -4,10 +4,32 @@
 (Data.Bool_Type.True,<2,Arg1>)
 (Data.Bool_Type.False,<2,Arg0>)
 (Data.Bool.&&,<1,(Arg0 Data.Bool_Type.False)>)
-(NanoPrelude.enumFromTo,(<3,((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))> <2,((Data.List_Type.: Arg0) ((NanoPrelude.enumFromTo ((+ Arg0) #1)) Arg1))>))
+(NanoPrelude.enumFromTo,(<3,((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))> (<3,((Data.List_Type.: Arg1) ((Arg0 Arg1) Arg2))> <1,(NanoPrelude.enumFromTo ((+ Arg0) #1))>)))
 (Data.List_Type.[],<2,Arg0>)
 (Data.List_Type.:,<4,((Arg3 Arg0) Arg1)>)
 
 heap:
+(EqList.main,(EqList.boolToInt (((EqList.eqList <) ((NanoPrelude.enumFromTo #1) #100)) ((NanoPrelude.enumFromTo #101) #200))))
+(EqList.boolToInt,<1,Ptr2>)
+(EqList.eqList,(<2,Ptr3> ((<6,Ptr4> <2,Ptr5>) (<6,Ptr6> <6,Ptr7>))))
+(Data.Bool_Type.True,<2,Ptr1>)
+(Data.Bool_Type.False,<2,Ptr0>)
+(Data.Bool.&&,<1,Ptr8>)
+(NanoPrelude.enumFromTo,(<3,Ptr9> (<3,Ptr10> <1,Ptr11>)))
+(Data.List_Type.[],<2,Ptr0>)
+(Data.List_Type.:,<4,Ptr12>)
 
 combs:
+Arg0
+Arg1
+((Arg0 #0) #42)
+(Y (Arg0 Arg1))
+((Arg4 ((Arg5 Data.Bool_Type.True) Arg0)) (((Arg1 Arg2) Arg3) Arg5))
+Data.Bool_Type.False
+((Arg3 Data.Bool_Type.False) ((((Arg0 Arg1) Arg2) Arg4) Arg5))
+((Data.Bool.&& ((Arg0 Arg2) Arg4)) ((Arg1 Arg3) Arg5))
+(Arg0 Data.Bool_Type.False)
+((((<= Arg1) Arg2) Data.List_Type.[]) ((Arg0 Arg1) Arg2))
+((Data.List_Type.: Arg1) ((Arg0 Arg1) Arg2))
+(NanoPrelude.enumFromTo ((+ Arg0) #1))
+((Arg3 Arg0) Arg1)

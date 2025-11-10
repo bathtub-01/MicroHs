@@ -268,8 +268,8 @@ mainCompile flags mn = do
           ++ unlines (map show combs)
      else if outFile `hasTheExtension` ".c" then
       writeFile outFile cCode
-     else if ".scala" `isSuffixOf` outFile then
-      writeFile outFile $ genRomOScala (takeWhile (/= '.') outFile) cmdl
+     -- else if ".scala" `isSuffixOf` outFile then
+     --  writeFile outFile $ genRomOScala (takeWhile (/= '.') outFile) cmdl
      else if ".rs" `isSuffixOf` outFile then
       let (_, heap, combs) = codeGen cmdl in
       writeFile outFile $ genRomRs (map toUpper $ takeWhile (/= '.') outFile) (heap, combs)

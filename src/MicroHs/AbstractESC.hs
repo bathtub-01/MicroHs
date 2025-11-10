@@ -89,7 +89,15 @@ removeSKI ae
 -- 1. removeSKI: convert SKI combinators into SCs
 -- 2. compileExpEsc: remove lambdas into ESCs
 compileEsc :: Exp -> Exp
-compileEsc = etaRewrite . compileExpEsc . removeSKI
+compileEsc = valid . etaRewrite . compileExpEsc . removeSKI
+
+valid :: Exp -> Exp
+valid e=
+  let
+    check e'@(Esc _ bd) = if nestedLv bd <= 1
+      then e' else error ("invalid comb: " ++ show e)
+    check e' = e'
+  in mapExp check e
 
 compileExpEsc :: Exp -> Exp
 compileExpEsc ae =
@@ -133,8 +141,11 @@ combineEsc a1 a2 =
               bd1' = mapExpOnArgInt (\i -> if i == ar1 - 1 then ar1 else i) bd1
           in foldl App c (args1 ++ [etaRewrite a2])
       else if a2IsUnary &&
-              (length (filter (== lenArgs1 + 1) is1) <= 1 || a2 == escI) &&
-              nestedApp bd2 == 0 then
+              (length (filter (== lenArgs1 + 1) is1) <= 1 || whenBd2Sgl) &&
+              (whenBd2Sgl
+               || (nestedLv bd2 == 0 && whenBd2Lv0)
+               || whenBd2Lv1
+              ) then 
         let
           mask i 
             | i == lenArgs1 = 42
@@ -158,7 +169,9 @@ combineEsc a1 a2 =
                         (Arg lenArgs1)
           c = Esc ar1 bd'
         in App (foldl App c args1) (etaRewrite a2Old)
-      else if length (filter (== lenArgs1 + 1) is1) <= 1 then
+      else if length (filter (== lenArgs1 + 1) is1) <= 1
+        && whenBd2Lv0
+           then
         let
           mask i = if i == lenArgs1 then -1 else i
           recover i = if i == -1 then lenArgs1 + 1 else i
@@ -181,10 +194,39 @@ combineEsc a1 a2 =
           let
             replace arg@(Arg i') | i' == i = rpl
                                  | otherwise = arg
+            replace _ = undefined
           in mapExpOnArg replace old
+        nestedLvOf :: Int
+        nestedLvOf =
+          let
+            find lv (App l r@(App _ _)) = min (find lv l) (find (lv + 1) r)
+            find lv (App l r) = min (find lv l) (find lv r)
+            find lv (Arg i) | i == lenArgs1 + 1 = lv
+            find _ _ = 42
+          in find 0 bd1
+        onSpine :: Bool
+        onSpine =
+          let            
+          find (App l r@(App _ _)) = find l || find r
+          find (App l _) = find l
+          find (Arg i) | i == lenArgs1 + 1 = True
+          find _ = False
+          in find bd1        
+        whenBd2Lv0 = nestedLvOf == 0 || onSpine
+        whenBd2Lv1 = nestedLvOf == 0 && onSpine
+        whenBd2Sgl = isSingleton bd2
+
+isSingleton :: Exp -> Bool
+isSingleton (App _ _) = False
+isSingleton _ = True
 
 xNotUsed :: [Exp] -> [Int] -> Bool
 xNotUsed args = notElem (length args)
+
+nestedLv :: Exp -> Int
+nestedLv (App e1 e2@(App _ _)) = max (nestedLv e1) (nestedLv e2 + 1)
+nestedLv (App e1 _) = nestedLv e1 -- nestedLv e2 is 0
+nestedLv _ = 0
 
 nestedApp :: Exp -> Int
 nestedApp (App e1 e2@(App _ _)) = nestedApp e1 + nestedApp e2 + 1
@@ -225,8 +267,7 @@ addEsc c1 args1 c2 args2 =
 
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
 standardCombine (Esc ar1 bd1) args1 c2@(Esc ar2 bd2) args2 =
-  if nestedApp bd2 == 0 then
-  -- if True then
+  if nestedLv bd2 == 0 then
     let
       c = Esc (ar1 + ar2 - 1) (App (mapExpOnArgInt redirect1 bd1) (mapExpOnArgInt redirect2 bd2))
       redirect1 i = if i == ar1 - 1 then ar1 + ar2 - 2 else i
@@ -353,6 +394,7 @@ etaShrink (Esc ar body) =
   in Esc ra rb
 etaShrink e = e
 
+-- two bugs: 1. duplication; 2. increase nested lv.
 etaApply :: Exp -> Exp
 etaApply ae =
   case ae of
@@ -364,14 +406,17 @@ etaApply ae =
           Esc ar body ->
             if ar <= length args && safeToApply 
             then
-              etaApply (fromSpine (apply body (take ar etaArgs), drop ar etaArgs)) -- fixed-point recursion
+              etaApply (fromSpine (apply body cArgs, drop ar etaArgs)) -- fixed-point recursion
             else fromSpine (c, etaArgs)
             where
+              cArgs = take ar etaArgs
               idxs = pullout body
-              safeToApply = noDuplicates idxs
+              safeToApply = noDuplicates idxs && all isSingleton cArgs -- FIXME: make this also more loose
               etaArgs = map etaApply args
-              noDuplicates [] = True
+              noDuplicates [] = True -- FIXME: make this more loose to allow singletons in etaArgs
               noDuplicates (x:xs) = x `notElem` xs && noDuplicates xs
+              duplications [] = []
+              duplications (x:xs) = if x `elem` xs then x : duplications xs else duplications xs
           _ -> fromSpine (c, map etaApply args)
     Esc 0 body -> body
     _ -> ae

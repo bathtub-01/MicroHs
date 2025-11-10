@@ -31,7 +31,7 @@ expToAtom :: Exp -> Atom
 expToAtom ae =
   case ae of
     Var f -> if "FUN" `isPrefixOf` i then Fun $ read (drop 3 i)
-               else error "Strange Var exists." where i = showIdent f
+               else error ("Strange Var exists: " ++ i) where i = showIdent f
     Lit (LInt i) -> Int i
     Lit (LPrim s) -> Prm s
     Sc a _ _ -> Com a 42
@@ -78,7 +78,7 @@ findIdentIn n m = fromMaybe
   M.lookup n m
 
 -- Takes the result of abstraction, generate heap image and comb image
--- codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
+codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     removed = deadRemove (mainName, ds)
@@ -87,7 +87,7 @@ codeGen (mainName, ds) =
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
   in (removed, heap', comb')
-  -- in (removed, heap, toList varMap)
+  -- in (escToSc removed, heap', toList varMap)
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
@@ -137,14 +137,7 @@ collectSingleton defs =
 -- will also strip off unused defs (caused by inlineSingleton)
 numberFuns :: [Exp] -> (Ident, [LDef]) -> M.Map Exp -> ([AExp], M.Map Exp)
 numberFuns combs (mainName, ds) mp =
-  let
-    trackVars :: Exp -> [Ident]
-    trackVars ae =
-      case ae of
-        Var i -> [i]
-        App f a -> trackVars f ++ trackVars a
-        Esc _ (Cbp p) -> trackVars $ combs !! p -- WARNING: infinity?
-        _ -> []
+  let    
     dMap = M.fromList ds
     dfs :: Ident -> State (Int, M.Map Exp, [Exp] -> [Exp]) ()
     dfs n = do
@@ -157,11 +150,20 @@ numberFuns combs (mainName, ds) mp =
           -- Walk n's children
           mapM_ dfs $ trackVars e
     sgls :: Exp -> State (Int, M.Map Exp, [Exp] -> [Exp]) ()
-    sgls e = do mapM_ dfs $ trackVars e      
-    (_,(ctr, m, res)) = runState (dfs mainName) (0, mp, id)
-    (_,(_, m', res')) = runState (mapM_ (\(_, e) -> sgls e) (toList mp)) (ctr, m, res)
+    sgls e = do mapM_ dfs $ trackVars e
+    trackVars :: Exp -> [Ident]
+    trackVars ae =
+      case ae of
+        Var i -> [i]
+        App f a -> trackVars f ++ trackVars a
+        Esc _ (Cbp p) -> trackVars $ combs !! p -- WARNING: infinity?
+        _ -> []
+    fullAct = do
+      dfs mainName
+      mapM_ (\(_, e) -> sgls e) (toList mp)
+    (_,(_, m, res)) = runState fullAct (0, mp, id)
     ref i = Var $ mkIdent $ "FUN" ++ show i
-  in (map (expToAExp False) $ res' [], m')
+  in (map (expToAExp False) $ res [], m)
 
 type SCRecord = [(Exp, Int)]
 
@@ -200,7 +202,7 @@ extractCombs ds =
       (scs, es, len) <- get
       case find (\(e, _) -> matchSc sc e) scs of
         Nothing -> do
-          put (scs, es . (getBody (scToEsc sc) :), len + 1)
+          put ((sc, len) : scs, es . (getBody (scToEsc sc) :), len + 1)
           return (Esc a (Cbp len))
         Just (_, i) -> do
           return (Esc a (Cbp i))
