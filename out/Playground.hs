@@ -43,11 +43,12 @@ sumOrMul :: Bool -> Int -> Int -> Int
 sumOrMul cond !a !b = if cond then a + b else a - b
 
 
-main :: Int
-main = let cond = lastEle [1 .. 50] == 50
-           a = lastEle (replicate 30 (100::Int))
-           b = lastEle (replicate 30 (200::Int))
-       in sumOrMul cond a b
+main = 
+  let
+    a = (1::Int) : b
+    b = (2::Int) : c
+    c = (3::Int) : a
+  in a
 
 --main = let a = sum [1 .. 50]
 --           b = a * 2
