@@ -30,3 +30,4 @@ cpphssrc/
 .metals/
 .scala-build/
 *.rs
+*.dbg

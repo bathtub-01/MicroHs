@@ -159,7 +159,7 @@ scK4 = Sc 5 X [0]
 --------------------
 
 compileOpt :: Exp -> Exp
-compileOpt = etaRewrite . compileExpSc . removeSKI 
+compileOpt = etaRewrite . compileExpLazy . removeSKI 
 -- compileOpt = compileBase . removeSKI . opInfix -- baseline method
 -- compileOpt = etaRewrite . compileExpSc . removeSKI . opInfix -- minimising combinator count
 -- compileOpt = etaRewrite . compileExpLazy . removeSKI . opInfix -- fully-laziness/self-optimising
