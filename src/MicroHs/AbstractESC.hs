@@ -1,7 +1,9 @@
 module MicroHs.AbstractESC(
   compileEsc,
   scToEsc,
-  pullout
+  pullout,
+  mapExpOnArg,
+  mapExpOnArgInt,
   ) where
 import Prelude(); import MHSPrelude
 import MicroHs.Ident
@@ -9,6 +11,9 @@ import MicroHs.Exp
 import MicroHs.Expr(Lit(..), unEField)
 import MicroHs.State
 import Data.List
+
+-- todo:
+--   1. relax arity constrain a bit
 
 -- compileOpt: remove all lambdas
 -- print program imgs (heap + reducer); translate remaining SCs into ESCs
@@ -92,10 +97,13 @@ compileEsc :: Exp -> Exp
 compileEsc = valid . etaRewrite . compileExpEsc . removeSKI
 
 valid :: Exp -> Exp
-valid e=
+valid e =
   let
-    check e'@(Esc _ bd) = if nestedLv bd <= 1
-      then e' else error ("invalid comb: " ++ show e)
+    check e'@(Esc ar bd) = if nestedLv bd > 1
+      then error ("invalid comb (nested level): " ++ show e')
+      else if ar > 7
+      then error ("invalid comb (arity): " ++ show e')
+      else e'
     check e' = e'
   in mapExp check e
 
@@ -119,7 +127,8 @@ abstractEsc ids x ae =
     Var y | y `elem` ids -> App escK ae
     App f a -> combineEsc (abstractEsc ids x f) (abstractEsc ids x a)
     Lam y e -> abstractEsc ids x $ argReorder x . etaRewrite $ abstractEsc (x : ids) y e
-    Esc ar body-> Esc (ar + 1) (mapExpOnArgInt (+ 1) body)
+    Esc ar body | ar + 1 <= 7 ->
+      Esc (ar + 1) (mapExpOnArgInt (+ 1) body)
     _ -> Esc 1 ae
 
 combineEsc :: Exp -> Exp -> Exp
@@ -131,7 +140,7 @@ combineEsc a1 a2 =
     (Esc ar1 bd1, Esc ar2 bd2) ->
       if a1IsUnary && a2IsUnary then
         standardCombine c1 args1 c2 args2
-      else if a1IsUnary then
+      else if a1IsUnary && ar1 + 1 <= 7 then
         if xNotUsed args2 is2 then
           let c = Esc (ar1 + 1) (App bd1' (Arg (ar1 - 1)))
               bd1' = mapExpOnArgInt (\i-> if i == ar1 - 1 then ar1 else i) bd1
@@ -141,6 +150,7 @@ combineEsc a1 a2 =
               bd1' = mapExpOnArgInt (\i -> if i == ar1 - 1 then ar1 else i) bd1
           in foldl App c (args1 ++ [etaRewrite a2])
       else if a2IsUnary &&
+              ar1 + ar2 - 2 <= 7 &&
               (length (filter (== lenArgs1 + 1) is1) <= 1 || whenBd2Sgl) &&
               (whenBd2Sgl
                || (nestedLv bd2 == 0 && whenBd2Lv0)
@@ -266,24 +276,25 @@ addEsc c1 args1 c2 args2 =
     _ -> undefined
 
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
-standardCombine (Esc ar1 bd1) args1 c2@(Esc ar2 bd2) args2 =
-  if nestedLv bd2 == 0 then
+standardCombine c1@(Esc ar1 bd1) args1 c2@(Esc ar2 bd2) args2 =
+  if nestedLv bd2 == 0 && ar1 + ar2 - 1 <= 7 then
     let
       c = Esc (ar1 + ar2 - 1) (App (mapExpOnArgInt redirect1 bd1) (mapExpOnArgInt redirect2 bd2))
       redirect1 i = if i == ar1 - 1 then ar1 + ar2 - 2 else i
       redirect2 i = i + length args1
     in foldl App c (args1 ++ args2)
-  else if xNotUsed args2 is2 then
+  else if xNotUsed args2 is2 && ar1 + 1 <= 7 then
     let
       c = Esc (ar1 + 1) (App (mapExpOnArgInt redirect bd1) (Arg (length args1)))
       redirect i = if i == ar1 - 1 then ar1 else i
     in foldl App c (args1 ++ [etaRewrite a2Old])
-  else
+  else if ar1 + 1 <= 7 then
     let
       c = Esc (ar1 + 1)
         (App (mapExpOnArgInt redirect bd1) (App (Arg (length args1)) (Arg (length args1 + 1))))
       redirect i = if i == ar1 - 1 then ar1 else i
     in foldl App c (args1 ++ [etaRewrite a2])
+  else addEsc c1 args1 c2 args2
   where    
     is2 = pullout bd2
     a2 = fromSpine (c2, args2)
@@ -413,7 +424,7 @@ etaApply ae =
               idxs = pullout body
               safeToApply = noDuplicates idxs && all isSingleton cArgs -- FIXME: make this also more loose
               etaArgs = map etaApply args
-              noDuplicates [] = True -- FIXME: make this more loose to allow singletons in etaArgs
+              noDuplicates [] = True -- FIXME: make this more loose to allow duplicated singletons
               noDuplicates (x:xs) = x `notElem` xs && noDuplicates xs
               duplications [] = []
               duplications (x:xs) = if x `elem` xs then x : duplications xs else duplications xs

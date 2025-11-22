@@ -67,7 +67,14 @@ substVar m e =
     findIdent n = findIdentIn n m
     substv aexp =
       case aexp of
-        Var n -> findIdent n
+        Var n ->
+          case findIdent n of
+            found@(Var f) ->
+              if "FUN" `isPrefixOf` i
+                then found
+                else substVar m found
+              where i = showIdent f
+            others -> others
         App f a -> App (substv f) (substv a)
         _ -> aexp
   in substv e
@@ -82,12 +89,13 @@ codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     removed = deadRemove (mainName, ds)
-    (heap, comb) = extractCombs $ escToSc removed
+    absorbed = absorbSingleton removed
+    (heap, comb) = extractCombs $ escToSc absorbed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
   in (removed, heap', comb')
-  -- in (escToSc removed, heap', toList varMap)
+  -- in (escToSc removed, heap', map (substVar varMap) comb)
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
@@ -108,6 +116,39 @@ deadRemove (mainName, ds) =
     idle = Var $ mkIdent "FUN"
   in res []
 
+-- absorb singletons into combinators
+absorbSingleton :: [LDef] -> [LDef]
+absorbSingleton ds =
+  let
+    walk :: Exp -> Exp
+    walk e =
+      let
+        (c, args) = spine e
+        args' = map walk args
+      in case c of
+        Esc ar bd -> let
+          (bd', args'') = walk' bd 0 args'
+          diff = length args' - length args''
+          c' = Esc (ar - diff) bd'
+          in foldl App c' args''
+        _ -> foldl App c args'
+    walk' :: Exp -> Int -> [Exp] -> (Exp, [Exp])
+    walk' e _      []       = (e, [])
+    walk' e offset (ar:ars) =
+      if isSingle ar then let
+        absorbed = absorb e offset ar
+        alligned = mapExpOnArgInt (\i -> if i > offset then i - 1 else i) absorbed
+        res = walk' alligned offset ars
+        in res
+      else let
+        (resFst, resSnd) = walk' e (offset + 1) ars
+        in (resFst, ar : resSnd)
+    absorb :: Exp -> Int -> Exp -> Exp
+    absorb bd i sgt =
+      mapExpOnArg (\(Arg a) -> if a == i then sgt else Arg a) bd
+    absorb _ _ _ = undefined
+  in map (\(n, ex) -> (n, walk ex)) ds
+
 escToSc :: [LDef] -> [LDef]
 escToSc defs =
   let
@@ -123,11 +164,13 @@ escToSc defs =
     takePat _ = X
   in map (\(i, e) -> (i, toSc e)) defs
 
+isSingle :: Exp -> Bool
+isSingle (App _ _) = False
+isSingle _ = True
+
 collectSingleton :: [LDef] -> M.Map Exp
 collectSingleton defs =
   let
-    isSingle (App _ _) = False
-    isSingle _ = True
     collect [] m = m
     collect ((i, e) : ies) m =
       if isSingle e then collect ies (M.insert i e m) else collect ies m
