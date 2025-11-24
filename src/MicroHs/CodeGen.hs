@@ -21,7 +21,7 @@ data Atom
   | Com Arity Ptr -- Pointer to the comb image
   | Fun Ptr -- Pointer to the heap image
   | Ptr Ptr Bool -- Pointer to other Apps within AExp
-  | Apt Ptr -- Argument pointer
+  | Apt Ptr Bool -- Argument pointer
   deriving(Show)
   
 type App = [Atom]
@@ -36,7 +36,7 @@ expToAtom ae =
     Lit (LPrim s) -> Prm s
     Sc a _ _ -> Com a 42
     Esc a (Cbp p) -> Com a p
-    Arg i -> Apt i
+    Arg i -> Apt i True -- temp value
     _ -> error $ "Not an Atom: " ++ show ae
 
 expToAExp :: Bool -> Exp -> AExp
@@ -94,7 +94,7 @@ codeGen (mainName, ds) =
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
-  in (removed, heap', comb')
+  in (removed, heap', dashArgs comb')
   -- in (escToSc removed, heap', map (substVar varMap) comb)
 
 -- remove unused definitions
@@ -262,6 +262,23 @@ extractCombs ds =
 
     (ds', (_, comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 2)
   in (ds', comb [])
+
+dashArgs :: [AExp] -> [AExp]
+dashArgs =
+  let
+    matchArg :: Atom -> Int -> Bool
+    matchArg (Apt p _) p' = p == p'
+    matchArg _ _ = False
+    countArg :: AExp -> Int -> Int
+    countArg aexp p = sum (map (length . filter (`matchArg` p)) aexp)
+    onArg :: AExp -> Atom -> Atom
+    onArg aexp a@(Apt p _) = if countArg aexp p > 1 then Apt p False else a
+    onArg _ a = a
+    walk :: AExp -> AExp
+    walk aexp =
+      map (map (onArg aexp)) aexp
+  in map walk
+
 
 l = mkIdent "l"
 h = mkIdent "h"

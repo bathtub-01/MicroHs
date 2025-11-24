@@ -61,8 +61,9 @@ ptr n oc = if oc
   then atomIndent ("PTR(" ++ show n ++ ", true, true),\n")
   else atomIndent ("PTR(" ++ show n ++ ", false, false),\n")
 
-arg :: Int -> (String -> String)
-arg n = atomIndent ("ARG(" ++ show n ++ "),\n")
+arg :: Int -> Bool -> (String -> String)
+arg n True = atomIndent ("ARG(" ++ show n ++ ", true),\n")
+arg n False = atomIndent ("ARG(" ++ show n ++ ", false),\n")
 
 int :: Int -> (String -> String)
 int n = atomIndent ("INT(" ++ show n ++ "),\n")
@@ -149,7 +150,7 @@ putAtom atm =
     atom (Com a p) = comb a p
     atom (Fun p) = ptr p False
     atom (Ptr p hc) = ptr p hc
-    atom (Apt p) = arg p
+    atom (Apt p unq) = arg p unq
   in do
   (c1, c2, r) <- get  
   put (c1, c2, r . atom atm)
