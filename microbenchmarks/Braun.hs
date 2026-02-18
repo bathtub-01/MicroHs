@@ -33,6 +33,7 @@ toList (Branch x t0 t1) = x : ilv (toList t0) (toList t1)
 ilv [] ys = ys
 ilv (x : xs) [] = x : xs
 ilv (x : xs) (y : ys) = x : y : ilv xs ys
+
 equal [] [] = True
 equal [] (y : ys) = False
 equal (x : xs) [] = False
@@ -41,7 +42,7 @@ equal (x : xs) (y : ys) =
     False -> False
     True -> equal xs ys
 
-prop xs = equal xs (toList (fromList' xs))
+prop xs = equal xs (toList (fromList xs))
 
 int True = 1::Int
 int False = 0::Int
