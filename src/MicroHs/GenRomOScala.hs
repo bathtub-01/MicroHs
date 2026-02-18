@@ -1,14 +1,7 @@
 module MicroHs.GenRomOScala(genRomOScala) where
 import Prelude(); import MHSPrelude
 import Data.List
-import qualified MicroHs.IdentMap as M
-import Data.Maybe
-import MicroHs.Desugar(LDef)
-import MicroHs.Exp
-import MicroHs.Expr(Lit(..), showLit, errorMessage, HasLoc(..))
-import MicroHs.Ident(Ident(..), showIdent, mkIdent)
 import MicroHs.State
-import MicroHs.Abstract
 import MicroHs.CodeGen
 import MicroHs.GenRom
 
