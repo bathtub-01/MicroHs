@@ -44,7 +44,7 @@ atomIndent = indentation 3
 -- atoms
 comb :: Int -> Int -> (String -> String)
 comb art p =
-  atomIndent ("COM(" ++ show art ++ "," ++ show p ++ "),\n")
+  atomIndent ("Com(" ++ show art ++ "," ++ show p ++ "),\n")
 
 opConvert :: String -> (String, String)
 opConvert "==" = ("EQ", "false")
@@ -53,36 +53,36 @@ opConvert "<=" = ("LE", "false")
 opConvert ">" = ("LE", "true")
 opConvert "<" = ("LT", "false")
 opConvert ">=" = ("LT", "true")
-opConvert "+" = ("ADD", "false")
-opConvert "-" = ("SUB", "false")
-opConvert "*" = ("MUL", "false")
+opConvert "+" = ("Add", "false")
+opConvert "-" = ("Sub", "false")
+opConvert "*" = ("Mul", "false")
 
 ptr :: Int -> Bool -> (String -> String)
 ptr n oc = if oc
-  then atomIndent ("PTR(" ++ show n ++ ", true, true),\n")
-  else atomIndent ("PTR(" ++ show n ++ ", false, false),\n")
+  then atomIndent ("Ptr(" ++ show n ++ ", true, true),\n")
+  else atomIndent ("Ptr(" ++ show n ++ ", false, false),\n")
 
 arg :: Int -> Bool -> (String -> String)
-arg n True = atomIndent ("ARG(" ++ show n ++ ", true),\n")
-arg n False = atomIndent ("ARG(" ++ show n ++ ", false),\n")
+arg n True = atomIndent ("Arg(" ++ show n ++ ", true),\n")
+arg n False = atomIndent ("Arg(" ++ show n ++ ", false),\n")
 
 int :: Int -> (String -> String)
-int n = atomIndent ("INT(" ++ show n ++ "),\n")
+int n = atomIndent ("Int(" ++ show n ++ "),\n")
 
 prim :: String -> (String -> String)
 prim op =
   let (code, rev) = opConvert op
-  in atomIndent ("PRM(" ++ code ++ "," ++ rev ++ "),\n")
+  in atomIndent ("Prm(" ++ code ++ "," ++ rev ++ "),\n")
 
 y :: String -> String
 y = atomIndent "Y,\n"
 
 seqStr :: String -> String
-seqStr = atomIndent "SEQ(false),\n"
+seqStr = atomIndent "Seq(false),\n"
 
 err :: Int -> (String -> String)
 err n =
-  atomIndent ("ERR(" ++ show n ++ "),\n")
+  atomIndent ("Err(" ++ show n ++ "),\n")
 
 genRomRs :: String -> ([AExp], [AExp]) -> String
 genRomRs progName (heap, cmb) =

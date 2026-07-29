@@ -90,6 +90,12 @@ removeSKI ae
   | isPrim "K4" ae = scK4
   | otherwise = ae    
 
+longSpine = lams [mkIdent "x", mkIdent "y"]
+  (apps (Var (mkIdent "x")) $ replicate 16 (Var (mkIdent "z")))
+
+longSpine' = lams [mkIdent "y"]
+  (apps (Var (mkIdent "x")) $ replicate 16 (Var (mkIdent "z")))
+
 -- compilation pipeline:
 -- 1. removeSKI: convert SKI combinators into SCs
 -- 2. compileExpEsc: remove lambdas into ESCs
@@ -103,6 +109,8 @@ valid e =
       then error ("invalid comb (nested level): " ++ show e')
       else if ar > 7
       then error ("invalid comb (arity): " ++ show e')
+      else if spineLen bd > 8
+      then error ("invalid comb (spine length): " ++ show e')
       else e'
     check e' = e'
   in mapExp check e
@@ -124,7 +132,7 @@ abstractEsc :: [Ident] -> Ident -> Exp -> Exp
 abstractEsc ids x ae =
   case ae of
     Var y | x == y -> escI
-    Var y | y `elem` ids -> App escK ae
+    Var y | y `elem` ids -> App escK ae -- should expose bound vars
     App f a -> combineEsc (abstractEsc ids x f) (abstractEsc ids x a)
     Lam y e -> abstractEsc ids x $ argReorder x . etaRewrite $ abstractEsc (x : ids) y e
     Esc ar body | ar + 1 <= 7 ->
@@ -140,7 +148,7 @@ combineEsc a1 a2 =
     (Esc ar1 bd1, Esc ar2 bd2) ->
       if a1IsUnary && a2IsUnary then
         standardCombine c1 args1 c2 args2
-      else if a1IsUnary && ar1 + 1 <= 7 then
+      else if a1IsUnary && ar1 + 1 <= 7 && spineLen bd1 + 1 <= 8 then
         if xNotUsed args2 is2 then
           let c = Esc (ar1 + 1) (App bd1' (Arg (ar1 - 1)))
               bd1' = mapExpOnArgInt (\i-> if i == ar1 - 1 then ar1 else i) bd1
@@ -151,6 +159,7 @@ combineEsc a1 a2 =
           in foldl App c (args1 ++ [etaRewrite a2])
       else if a2IsUnary &&
               ar1 + ar2 - 2 <= 7 &&
+              (head is1 /= lenArgs1 + 1 || spineLen bd2 + spineLen bd1 - 1 <= 8) &&
               (length (filter (== lenArgs1 + 1) is1) <= 1 || whenBd2Sgl) &&
               (whenBd2Sgl
                || (nestedLv bd2 == 0 && whenBd2Lv0)
@@ -170,7 +179,9 @@ combineEsc a1 a2 =
                         (mapExpOnArgInt (+ lenArgs1) bd2)
           c = Esc (ar1 + ar2 - 2) bd'
         in foldl App c (args1 ++ args2)
-      else if xNotUsed args2 is2 then
+      else if xNotUsed args2 is2 &&
+              (head is1 /= lenArgs1 + 1 || spineLen bd2 + spineLen bd1 - 1 <= 8)
+      then
         let
           mask i = if i == lenArgs1 then -1 else i
           recover i = if i == -1 then lenArgs1 + 1 else i
@@ -179,9 +190,9 @@ combineEsc a1 a2 =
                         (Arg lenArgs1)
           c = Esc ar1 bd'
         in App (foldl App c args1) (etaRewrite a2Old)
-      else if length (filter (== lenArgs1 + 1) is1) <= 1
-        && whenBd2Lv0
-           then
+      else if length (filter (== lenArgs1 + 1) is1) <= 1 &&
+           (head is1 /= lenArgs1 + 1 || spineLen bd2 + spineLen bd1 - 1 <= 8) &&
+           whenBd2Lv0 then
         let
           mask i = if i == lenArgs1 then -1 else i
           recover i = if i == -1 then lenArgs1 + 1 else i
@@ -277,18 +288,19 @@ addEsc c1 args1 c2 args2 =
 
 standardCombine :: Exp -> [Exp] -> Exp -> [Exp] -> Exp
 standardCombine c1@(Esc ar1 bd1) args1 c2@(Esc ar2 bd2) args2 =
-  if nestedLv bd2 == 0 && ar1 + ar2 - 1 <= 7 then
+  if nestedLv bd2 == 0 && ar1 + ar2 - 1 <= 7
+    && spineLen bd1 + 1 <= 8 then
     let
       c = Esc (ar1 + ar2 - 1) (App (mapExpOnArgInt redirect1 bd1) (mapExpOnArgInt redirect2 bd2))
       redirect1 i = if i == ar1 - 1 then ar1 + ar2 - 2 else i
       redirect2 i = i + length args1
     in foldl App c (args1 ++ args2)
-  else if xNotUsed args2 is2 && ar1 + 1 <= 7 then
+  else if xNotUsed args2 is2 && ar1 + 1 <= 7 && spineLen bd1 + 1 <= 8 then
     let
       c = Esc (ar1 + 1) (App (mapExpOnArgInt redirect bd1) (Arg (length args1)))
       redirect i = if i == ar1 - 1 then ar1 else i
     in foldl App c (args1 ++ [etaRewrite a2Old])
-  else if ar1 + 1 <= 7 then
+  else if ar1 + 1 <= 7 && spineLen bd1 + 1 <= 8 then
     let
       c = Esc (ar1 + 1)
         (App (mapExpOnArgInt redirect bd1) (App (Arg (length args1)) (Arg (length args1 + 1))))

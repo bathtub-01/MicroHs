@@ -8,7 +8,7 @@ module MicroHs.Exp(
   substExp,
   app2, app3, cFlip,
   allVarsExp, freeVars,
-  lams, apps, spine,
+  lams, apps, spine, spineLen,
   getHoles, fromSpine, fromPat,
   ) where
 import Prelude(); import MHSPrelude hiding((<>))
@@ -145,6 +145,10 @@ spine ae = spine' ae []
       case e of
         App f a -> spine' f (a : acc)
         _ -> (e, acc)
+
+spineLen :: Exp -> Int
+spineLen (App f _) = spineLen f + 1
+spineLen _ = 1
 
 fromSpine :: (Exp, [Exp]) -> Exp
 fromSpine (f, []) = f

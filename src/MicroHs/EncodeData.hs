@@ -20,14 +20,16 @@ data SPat = SPat Con [Ident]    -- simple pattern
 --  deriving(Show, Eq)
 
 encCase :: Exp -> [(SPat, Exp)] -> Exp -> Exp
-encCase var pes dflt | n <= scottLimit = encCaseScott var pes dflt
-                     | otherwise = encCaseNo var pes dflt
-  where n = numConstr pes
+-- encCase var pes dflt | n <= scottLimit = encCaseScott var pes dflt
+--                      | otherwise = encCaseNo var pes dflt
+--   where n = numConstr pes
+encCase = encCaseScott
 
 encConstr :: Int -> Int -> [Bool] -> Exp
-encConstr i n ss | n /= n = undefined  -- XXX without this, everything slows down.  Why?
-                 | n <= scottLimit = encConstrScott i n ss
-                 | otherwise       = encConstrNo i n ss
+-- encConstr i n ss | n /= n = undefined  -- XXX without this, everything slows down.  Why?
+--                  | n <= scottLimit = encConstrScott i n ss
+--                  | otherwise       = encConstrNo i n ss
+encConstr = encConstrScott
 
 encIf :: Exp -> Exp -> Exp -> Exp
 encIf = encIfScott
@@ -46,7 +48,7 @@ scottLimit = 5
 
 -------------------------------------------
 
--- Scott encoding
+-- Scott encoding 
 --   C_i e1 ... en
 -- encodes as, assuming k constructors
 --   \ x1 ... xn -> \ f1 ... fi ... fk -> fi x1 ... xn
@@ -78,10 +80,18 @@ encConstrScott i n ss =
     strict (False:ys) (_:is) e = strict ys is e
     strict (True:ys)  (x:is) e = app2 (Lit (LPrim "seq")) (Var x) (strict ys is e)
     strict _ _ e = e
-  in lams xs $ strict ss xs $ lams fs $ apps (Var f) (map Var xs)  
+  in lams xs $ strict ss xs $ lams fs $ apps (Var f) (map Var xs)
 
 encIfScott :: Exp -> Exp -> Exp -> Exp
-encIfScott c t e = app2 c e t
+-- encIfScott c t e = app2 c e t
+encIfScott c t e =
+  let
+    isV idt = notElem '.' (showIdent idt)
+    freeVs = filter isV $ nub $ freeVars t ++ freeVars e
+    newT = lams freeVs t -- NOTE this is fine because Bool doesn't have any field
+    newE = lams freeVs e    
+  in
+    apps c (newE : newT : map Var freeVs)
 
 encList :: [Exp] -> Exp
 encList = foldr (app2 cCons) cNil
