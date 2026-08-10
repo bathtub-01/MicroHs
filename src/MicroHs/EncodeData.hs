@@ -20,16 +20,16 @@ data SPat = SPat Con [Ident]    -- simple pattern
 --  deriving(Show, Eq)
 
 encCase :: Exp -> [(SPat, Exp)] -> Exp -> Exp
--- encCase var pes dflt | n <= scottLimit = encCaseScott var pes dflt
---                      | otherwise = encCaseNo var pes dflt
---   where n = numConstr pes
-encCase = encCaseScott
+encCase var pes dflt | n <= scottLimit = encCaseScott var pes dflt
+                     | otherwise = encCaseNo var pes dflt
+  where n = numConstr pes
+-- encCase = encCaseScott
 
 encConstr :: Int -> Int -> [Bool] -> Exp
--- encConstr i n ss | n /= n = undefined  -- XXX without this, everything slows down.  Why?
---                  | n <= scottLimit = encConstrScott i n ss
---                  | otherwise       = encConstrNo i n ss
-encConstr = encConstrScott
+encConstr i n ss | n /= n = undefined  -- XXX without this, everything slows down.  Why?
+                 | n <= scottLimit = encConstrScott i n ss
+                 | otherwise       = encConstrNo i n ss
+-- encConstr = encConstrScott
 
 encIf :: Exp -> Exp -> Exp -> Exp
 encIf = encIfScott
@@ -38,7 +38,7 @@ encIf = encIfScott
 -- The runtime system knows the encoding of some types:
 -- Bool, [], Ordering
 scottLimit :: Int
-scottLimit = 5
+scottLimit = 10
 -- Some timing for different limits
 --   3  27.9s
 --   5  26.5s
@@ -61,12 +61,19 @@ encCaseScott var pes dflt =
   case pes of
     (SPat (ConData cs _ _) _, _) : _ ->
       let
+        isSingleton [_] = True
+        isSingleton _ = False
         arm (c, k) =
           let
             !(vs, rhs) = head $ [ (xs, e) | (SPat (ConData _ i _) xs, e) <- pes, c == i ] ++
                                 [ (replicate k dummyIdent, dflt) ]
-          in lams vs rhs
-      in  apps var (map arm cs)
+          in (vs, rhs)
+        arms = map arm cs
+        freeVs = arrangeFreeVars $ concatMap (\(fs, r) -> freeVars (lams fs r)) arms
+      in if isSingleton cs then 
+           apps var (map (\(fs, r) -> lams fs r) arms)
+         else
+           apps var (map (\(fs, r) -> lams (fs ++ freeVs) r) arms ++ map Var freeVs)
     _ -> undefined
 
 -- Encode a constructor with strictness flags ss.
@@ -86,13 +93,18 @@ encIfScott :: Exp -> Exp -> Exp -> Exp
 -- encIfScott c t e = app2 c e t
 encIfScott c t e =
   let
-    isV idt = notElem '.' (showIdent idt)
-    freeVs = filter isV $ nub $ freeVars t ++ freeVars e
+    freeVs = arrangeFreeVars $ freeVars t ++ freeVars e
     newT = lams freeVs t -- NOTE this is fine because Bool doesn't have any field
     newE = lams freeVs e    
   in
     apps c (newE : newT : map Var freeVs)
 
+arrangeFreeVars :: [Ident] -> [Ident]
+arrangeFreeVars is =
+  let 
+    isV idt = notElem '.' (showIdent idt)
+  in filter isV $ nub is
+    
 encList :: [Exp] -> Exp
 encList = foldr (app2 cCons) cNil
 
