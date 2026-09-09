@@ -163,6 +163,11 @@ foldl :: forall a b . (b -> a -> b) -> b -> [a] -> b
 foldl _ z [] = z
 foldl f z (x : xs) = foldl f (f z x) xs
 
+foldl' :: (b -> a -> b) -> b -> [a] -> b
+foldl' _ z []     = z
+foldl' f z (x:xs) = let z' = f z x
+                    in z' `seq` foldl' f z' xs
+
 concat :: forall a . [[a]] -> [a]
 concat = foldr (++) []
 
@@ -176,7 +181,7 @@ length =
 
 sum :: [Int] -> Int
 sum = foldr (+) 0
--- sum = foldl (+) 0 -- this will make Mss result worse for SKI+
+-- sum = foldl' (+) 0 
 
 null :: forall a . [a] -> Bool
 null [] = True

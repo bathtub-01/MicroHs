@@ -78,7 +78,7 @@ y :: String -> String
 y = atomIndent "Y,\n"
 
 seqStr :: String -> String
-seqStr = atomIndent "Seq(false),\n"
+seqStr = atomIndent "Seq,\n"
 
 err :: Int -> (String -> String)
 err n =
