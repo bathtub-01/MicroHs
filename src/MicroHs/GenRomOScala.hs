@@ -60,6 +60,9 @@ arg n False = (("argBuilder(" ++ show n ++ ", false),\n") ++)
 y :: (String -> String)
 y = ("yBuilder(),\n" ++)
 
+seqStr :: String -> String
+seqStr = ("seqBuilder(),\n" ++)
+
 err :: Int -> (String -> String)
 err code = ("errorBuilder(" ++) . (show code ++) . ("),\n" ++)
 
@@ -99,7 +102,7 @@ putAtom :: Atom -> State (Int, Int, String -> String) ()
 putAtom atm =
   let
     atom (Prm "Y") = y
-    -- atom (Prm "seq") = seqStr
+    atom (Prm "seq") = seqStr
     atom (Prm op) = if "error" `isPrefixOf` op
                       then err $ read (drop 5 op)
                       else prim op
