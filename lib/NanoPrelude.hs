@@ -13,6 +13,13 @@ import Data.List_Type
 seq :: forall a b . a -> b -> b
 seq = primitive "seq"
 
+newtype Char = Char Int
+
+type String = [Char]
+
+fromString :: [Char] -> String
+fromString = id
+
 data Cmp = EQ | LT | GT
 
 data Maybe a = Nothing | Just a

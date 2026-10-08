@@ -70,6 +70,34 @@ nameChar = "Primitives.Char"
 identChar :: Ident
 identChar = mkIdentB nameChar
 
+-- Ouros's NanoPrelude deliberately defines its own Char as a newtype
+-- around Int.  Use that type for literals only when it is in scope;
+-- otherwise retain the ordinary MicroHs Primitives.Char semantics.
+nameNanoChar :: String
+nameNanoChar = "NanoPrelude.Char"
+
+literalCharName :: Expected -> T String
+literalCharName mt = do
+  mex <- case mt of
+           Infer _ -> return Nothing
+           Check t -> Just <$> (derefUVar t >>= expandSyn)
+  -- An explicit expected type takes precedence if both Char types are
+  -- imported.  Otherwise choose NanoPrelude.Char only when it is visible.
+  let charType i | i == identChar              = Just nameChar
+                 | i == mkIdent nameNanoChar   = Just nameNanoChar
+                 | otherwise                  = Nothing
+      expectedChar (EVar i) = charType i
+      expectedChar (EApp (EVar lst) (EVar i))
+        | lst == identList = charType i
+      expectedChar _ = Nothing
+  case mex >>= expectedChar of
+    Just c -> return c
+    Nothing -> do
+      tys <- gets typeTable
+      return $ case stLookup "type" (mkIdent nameNanoChar) tys of
+        Right _ -> nameNanoChar
+        Left _  -> nameChar
+
 nameInteger :: String
 nameInteger = "Data.Integer_Type.Integer"
 identInteger :: Ident
@@ -1702,18 +1730,23 @@ tcExprR mt ae =
                   (_at, rt) <- unArrow loc ft
                   -- We don't need to check that _at is Rational, it's part of the fromRational type.
                   instSigma loc (EApp f ae) rt mt
-            -- This implements OverloadedStrings.  It causes a small slowdown (2%)
+            -- NanoPrelude strings are plain [NanoPrelude.Char], not
+            -- overloaded strings.  No fromString call is required.
+            -- Keep OverloadedStrings for the standard MicroHs Char type.
             LStr _ -> do
-              mex <- getExpected mt
-              case mex of
-                Just (EApp (EVar lst) (EVar c))
-                 | lst == identList, c == identChar -> tcLit mt loc lit
-                _ -> do
-                  (f, ft) <- tInferExpr (EVar (mkBuiltin loc "fromString"))
-                  (_at, rt) <- unArrow loc ft
-                  -- We don't need to check that _at is String, it's part of the fromString type.
-                  --tcTrace ("LStr " ++ show (loc, r))
-                  instSigma loc (EApp f ae) rt mt
+              charName <- literalCharName mt
+              if charName == nameNanoChar then
+                tcLit mt loc lit
+              else do
+                mex <- getExpected mt
+                case mex of
+                  Just (EApp (EVar lst) (EVar c))
+                   | lst == identList, c == identChar -> tcLit mt loc lit
+                  _ -> do
+                    (f, ft) <- tInferExpr (EVar (mkBuiltin loc "fromString"))
+                    (_at, rt) <- unArrow loc ft
+                    -- The argument type is determined by fromString.
+                    instSigma loc (EApp f ae) rt mt
             -- Not LInteger, LRat, LStr
             _ -> tcLit mt loc lit
         _ -> impossible
@@ -1958,14 +1991,13 @@ tcLit :: HasCallStack => Expected -> SLoc -> Lit -> T Expr
 tcLit mt loc l@(LPrim _) = newUVar >>= tcLit' mt loc l
 tcLit mt loc l@(LExn  _) = newUVar >>= tcLit' mt loc l
 tcLit mt loc l = do
-  let t =
-        case l of
-          LInt _     -> tConI loc nameInt
-          LInteger _ -> tConI loc nameInteger
-          LDouble _  -> tConI loc nameFloatW
-          LChar _    -> tConI loc nameChar
-          LStr _     -> tApp (tList loc) (tConI loc nameChar)
-          _          -> impossible
+  t <- case l of
+         LInt _     -> return $ tConI loc nameInt
+         LInteger _ -> return $ tConI loc nameInteger
+         LDouble _  -> return $ tConI loc nameFloatW
+         LChar _    -> tConI loc <$> literalCharName mt
+         LStr _     -> (tApp (tList loc) . tConI loc) <$> literalCharName mt
+         _          -> impossible
   tcLit' mt loc l t
 
 tcLit' :: Expected -> SLoc -> Lit -> EType -> T Expr

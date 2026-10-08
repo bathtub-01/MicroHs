@@ -1,9 +1,11 @@
 module MicroHs.CodeGen where
 import Prelude(); import MHSPrelude
 import Data.List
+import Data.Char(ord)
 import qualified MicroHs.IdentMap as M
 import Data.Maybe
 import MicroHs.Desugar(LDef)
+import MicroHs.EncodeData(encList)
 import MicroHs.Exp
 import MicroHs.Expr(Lit(..), showLit, errorMessage, HasLoc(..))
 import MicroHs.Ident(Ident(..), showIdent, mkIdent)
@@ -84,11 +86,27 @@ findIdentIn n m = fromMaybe
   (errorMessage (getSLoc n) $ "No definition found for: " ++ showIdent n) $
   M.lookup n m
 
+-- Expand Haskell string literals to lists of character code points.
+-- Since these definitions have already passed compileEsc in Compile.hs,
+-- run compileEsc on each newly generated list: encList contains the
+-- O/K primitives, which must become Sc combinators before ROM emission.
+-- Leave the regular MicroHs UTF-8 string path unchanged.
+lowerStrings :: Exp -> Exp
+lowerStrings ae =
+  case ae of
+    -- encList uses O/K primitives; compileEsc turns these into supported
+    -- Sc combinators before the Ouros ROM serializer sees the expression.
+    Lit (LStr cs) -> compileEsc (encList (map (Lit . LInt . ord) cs))
+    App f a -> App (lowerStrings f) (lowerStrings a)
+    Lam x e -> Lam x (lowerStrings e)
+    Esc ar e -> Esc ar (lowerStrings e)
+    _ -> ae
+
 -- Takes the result of abstraction, generate heap image and comb image
 codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
-    removed = deadRemove (mainName, ds)
+    removed = deadRemove (mainName, map (\(i, e) -> (i, lowerStrings e)) ds)
     absorbed = absorbSingleton removed
     (heap, comb) = extractCombs $ escToSc absorbed
     singletons = collectSingleton heap
