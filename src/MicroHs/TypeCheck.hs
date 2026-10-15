@@ -1225,7 +1225,7 @@ expandClass impt dcls@(Class ctx (iCls, vks) fds ms) = do
                       def Nothing = Fcn iDflt $ simpleEqn noDflt
                       def (Just eqns) = Fcn iDflt eqns
                       iDflt = mkDefaultMethodId methId
-                      noDflt = mkExn (getSLoc methId) (unIdent methId) "noMethodError"
+                      noDflt = ELit (getSLoc methId) (LPrim "error88")
               
       mkDflt _ = impossible
       dDflts = case impt of

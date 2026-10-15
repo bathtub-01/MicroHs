@@ -2,13 +2,17 @@ module NanoPrelude(
   module Data.Int,
   module Data.Bool,
   module Data.List_Type,
-  module NanoPrelude
+  module NanoPrelude,
+  module Ouros.Monad,
+  module Ouros.IO,
 ) where
 
 import Prelude()
 import Data.Int
 import Data.Bool
 import Data.List_Type
+import Ouros.Monad
+import Ouros.IO
 
 seq :: forall a b . a -> b -> b
 seq = primitive "seq"
