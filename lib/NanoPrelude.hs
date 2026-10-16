@@ -5,24 +5,19 @@ module NanoPrelude(
   module NanoPrelude,
   module Ouros.Monad,
   module Ouros.IO,
+  module Ouros.Char_String,
 ) where
 
 import Prelude()
 import Data.Int
 import Data.Bool
 import Data.List_Type
+import Ouros.Char_String
 import Ouros.Monad
 import Ouros.IO
 
 seq :: forall a b . a -> b -> b
 seq = primitive "seq"
-
-newtype Char = Char Int
-
-type String = [Char]
-
-fromString :: [Char] -> String
-fromString = id
 
 data Cmp = EQ | LT | GT
 
