@@ -230,12 +230,15 @@ type SCRecord = [(Exp, Int)]
 
 scK = Sc 2 X [0] -- False
 scA = Sc 2 X [1] -- True
+scPair = Sc 3 (At (At X X) X) [2, 0, 1] -- \xyk. kxy
 
 defaultRecord :: SCRecord
-defaultRecord = [(scK, 0), (scA, 1)]
+defaultRecord = [(scK, 0), (scA, 1), (scPair, 2)]
 
 defaultCombs :: [Exp] -> [Exp]
-defaultCombs = ([Arg 0, Arg 1] ++)
+defaultCombs = ([Arg 0,
+                 Arg 1,
+                 App (App (Arg 2) (Arg 0)) (Arg 1)] ++)
 
 matchSc :: Exp -> Exp -> Bool
 matchSc (Sc _ p1 is1) (Sc _ p2 is2) =

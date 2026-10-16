@@ -80,6 +80,10 @@ y = atomIndent "Y,\n"
 seqStr :: String -> String
 seqStr = atomIndent "Seq,\n"
 
+io :: Bool -> String -> String
+io True = atomIndent "Int(true),\n"
+io _    = atomIndent "Int(false),\n"
+
 err :: Int -> (String -> String)
 err n =
   atomIndent ("Err(" ++ show n ++ "),\n")
@@ -122,6 +126,8 @@ putAtom atm =
   let
     atom (Prm "Y") = y
     atom (Prm "seq") = seqStr
+    atom (Prm "IO.Write") = io True
+    atom (Prm "IO.Read")  = io False
     atom (Prm op) = if "error" `isPrefixOf` op
                       then err $ read (drop 5 op)
                       else prim op
