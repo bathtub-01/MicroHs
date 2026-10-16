@@ -81,8 +81,8 @@ seqStr :: String -> String
 seqStr = atomIndent "Seq,\n"
 
 io :: Bool -> String -> String
-io True = atomIndent "Int(true),\n"
-io _    = atomIndent "Int(false),\n"
+io True = atomIndent "IO(true),\n"
+io _    = atomIndent "IO(false),\n"
 
 err :: Int -> (String -> String)
 err n =

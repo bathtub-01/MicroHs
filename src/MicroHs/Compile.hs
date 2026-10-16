@@ -70,7 +70,7 @@ compileCacheTop flags mn ch = do
   return res
 
 compileMany :: Flags -> [IdentModule] -> Cache -> IO Cache
-compileMany flags mns ach = snd <$> runStateIO (mapM_ (compileModuleCached flags ImpNormal) mns) ach
+compileMany flags mns ach = snd <$> runStateIO (mapM_ (compileModuleCached flags False ImpNormal) mns) ach
 
 getCached :: Flags -> IO Cache
 getCached flags | not (readCache flags) = return emptyCache
@@ -96,9 +96,14 @@ maybeSaveCache flags cash =
 
 compile :: Flags -> IdentModule -> Cache -> IO ((IdentModule, [LDef]), Symbols, Cache)
 compile flags nm ach = do
-  let comp = do
+  let wrapRoot = isOurosRomOutput flags
+      -- A cached module contains ordinary (unwrapped) definitions.  Recheck
+      -- the entry module so its inferred main type is available when emitting
+      -- an Ouros ROM, including with -CR/-CW; dependencies remain cached.
+      ach' = if wrapRoot then deleteFromCache nm ach else ach
+      comp = do
 --XXX        modify $ addBoot $ mkIdent "Control.Exception.Internal"      -- the compiler generates references to this module
-        r <- compileModuleCached flags ImpNormal nm
+        r <- compileModuleCached flags wrapRoot ImpNormal nm
         let loadBoots = do
               bs <- gets getBoots
               case bs of
@@ -106,22 +111,53 @@ compile flags nm ach = do
                 bmn:_ -> do
                   when (verbosityGT flags 0) $
                     liftIO $ putStrLn $ "compiling used boot module " ++ showIdent bmn
-                  _ <- compileModuleCached flags ImpNormal bmn
+                  _ <- compileModuleCached flags False ImpNormal bmn
                   loadBoots
         loadBoots
         loadDependencies flags
         return r
-  ((cm, syms, t), ch) <- runStateIO comp ach
+  ((cm, syms, t), ch) <- runStateIO comp ach'
   when (verbosityGT flags 0) $
     putStrLn $ "total import time     " ++ padLeft 6 (show t) ++ "ms"
-  return ((tModuleName cm, concatMap tBindingsOf $ cachedModules ch), syms, ch)
+  let cachedDefs = concatMap tBindingsOf $ cachedModules ch
+      -- Only the executable entry point receives the synthetic World.
+      -- Keep the cached copy untouched for imports and other targets.
+      mainName = qualIdent (tModuleName cm) (mkIdent "main")
+      rootMain = lookup mainName (tBindingsOf cm)
+      finalDefs = if wrapRoot then
+                    [ (i, if i == mainName then fromMaybe e rootMain else e)
+                    | (i, e) <- cachedDefs ]
+                  else cachedDefs
+  return ((tModuleName cm, finalDefs), syms, ch)
+
+-- ROM outputs use the Ouros calling convention, not MicroHs's native IO.
+-- The debug image follows the same convention as the Rust/Scala ROMs.
+isOurosRomOutput :: Flags -> Bool
+isOurosRomOutput flags = not (runIt flags) &&
+  any (`isSuffixOf` output flags) [".rs", ".scala", ".dbg"]
+
+-- Look at the *checked* type, not the body or a guessed signature.
+-- 'IO' can come from Ouros.IO or be re-exported by NanoPrelude.
+-- The result type is deliberately unrestricted: IO a for any a.
+isIOType :: EType -> Bool
+isIOType (EForall _ _ t) = isIOType t
+isIOType (ESign t _) = isIOType t
+isIOType (EApp (EVar tyCon) _) = unQualIdent tyCon == mkIdent "IO"
+isIOType _ = False
+
+isIOMain :: Ident -> TModule [EDef] -> Bool
+isIOMain mainName tm =
+  any isMainSign (tBindingsOf tm)
+  where
+    isMainSign (Sign names ty) = any ((== mainName) . unQualIdent) names && isIOType ty
+    isMainSign _ = False
 
 -- Compile a module with the given name.
 -- If the module has already been compiled, return the cached result.
 -- If the module has not been compiled, first try to find a source file.
 -- If there is no source file, try loading a package.
-compileModuleCached :: Flags -> ImpType -> IdentModule -> CM (TModule [LDef], Symbols, Time)
-compileModuleCached flags impt mn = do
+compileModuleCached :: Flags -> Bool -> ImpType -> IdentModule -> CM (TModule [LDef], Symbols, Time)
+compileModuleCached flags wrapRoot impt mn = do
   cash <- get
   case lookupCache mn cash of
     Nothing ->
@@ -147,7 +183,7 @@ compileModuleCached flags impt mn = do
                   putStrLn $ " (" ++ show pathfn ++ ")"
                 putStrLn ""
               modify $ addWorking mn
-              compileModule flags ImpNormal mn pathfn file
+              compileModule flags wrapRoot ImpNormal mn pathfn file
     Just tm -> do
       when (verbosityGT flags 1) $
         putStrLnInd $ "importing cached " ++ showIdent mn
@@ -175,10 +211,10 @@ compileBootModule flags mn = do
     Nothing -> error $ "boot module not found: " ++ showIdent mn
     Just (pathfn, file) -> do
       modify $ addBoot mn
-      compileModule flags ImpBoot mn pathfn file
+      compileModule flags False ImpBoot mn pathfn file
 
-compileModule :: Flags -> ImpType -> IdentModule -> FilePath -> String -> CM (TModule [LDef], Symbols, Time)
-compileModule flags impt mn pathfn file = do
+compileModule :: Flags -> Bool -> ImpType -> IdentModule -> FilePath -> String -> CM (TModule [LDef], Symbols, Time)
+compileModule flags wrapRoot impt mn pathfn file = do
   t1 <- liftIO getTimeMilli
   mchksum <- liftIO (md5File pathfn)  -- XXX there is a small gap between reading and computing the checksum.
   let chksum :: MD5CheckSum
@@ -199,7 +235,7 @@ compileModule flags impt mn pathfn file = do
     specs = [ s | Import s <- defs ]
     imported = [ (boot, m) | ImportSpec boot _ m _ _ <- specs ]
   t2 <- liftIO getTimeMilli
-  (impMdls, _, tImps) <- fmap unzip3 $ mapM (uncurry $ compileModuleCached flags) imported
+  (impMdls, _, tImps) <- fmap unzip3 $ mapM (uncurry $ compileModuleCached flags False) imported
 
   t3 <- liftIO getTimeMilli
   glob <- gets getCacheTables
@@ -212,6 +248,8 @@ compileModule flags impt mn pathfn file = do
           mrnf tmdl `seq` return ()
   let
     dmdl = desugar flags tmdl
+    mainName = qualIdent (tModuleName tmdl) (mkIdent "main")
+    wrapMain = wrapRoot && isIOMain (mkIdent "main") tmdl
   () <- return $ rnfErr $ tBindingsOf dmdl
   t4 <- liftIO getTimeMilli
   -- liftIO $ putStrLn $ "desugared:\n" ++ show (tBindingsOf dmdl) -- show lambda terms
@@ -241,9 +279,23 @@ compileModule flags impt mn pathfn file = do
       in
         map (\(i, e) -> (i, subOps e)) (tBindingsOf dmdl)
   let
-    scGraphs = [ (i, compileEsc e) | (i, e) <- opMoved ]
+    -- Apply the initial World to the body of main, rather than generating
+    -- a second entry function.  This happens after type checking/desugaring
+    -- and before combinator abstraction.
+    wrapped = [ (i, if wrapMain && i == mainName
+                       then App e (Lit (LInt 1993)) -- The Monadic IO paper pulication year
+                       else e)
+              | (i, e) <- opMoved ]
+    scGraphs = [ (i, compileEsc e) | (i, e) <- wrapped ]
+    -- The cache must retain the original meaning of main.  In particular,
+    -- ordinary .comb/C builds must not inherit the Ouros World argument.
+    cacheGraphs = if wrapMain
+                    then zipWith (\(i, e) (_, ce) ->
+                           (i, if i == mainName then compileEsc e else ce)) opMoved scGraphs
+                    else scGraphs
   let
     cmdl = setBindings dmdl scGraphs
+    cacheCmdl = setBindings dmdl cacheGraphs
   () <- return $ rnfErr $ tBindingsOf cmdl  -- This makes execution slower, but speeds up GC
 --  () <- return $ rnfErr syms same for this, but worse total time
   t5 <- liftIO getTimeMilli
@@ -263,7 +315,7 @@ compileModule flags impt mn pathfn file = do
     liftIO $ putStrLn $ "loaded " ++ showIdent mn
 
   case impt of
-    ImpNormal -> modify $ workToDone (cmdl, map snd imported, chksum)
+    ImpNormal -> modify $ workToDone (cacheCmdl, map snd imported, chksum)
     ImpBoot   -> return ()
 
   return (cmdl, syms, tThis + tImp)

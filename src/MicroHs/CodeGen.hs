@@ -281,7 +281,7 @@ extractCombs ds =
 
     getBody (Esc _ e) = e
 
-    (ds', (_, comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 2)
+    (ds', (_, comb, _)) = runState (extract ds) (defaultRecord, defaultCombs, 3)
   in (ds', comb [])
 
 dashArgs :: [AExp] -> [AExp]
