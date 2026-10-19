@@ -63,6 +63,10 @@ y = ("yBuilder(),\n" ++)
 seqStr :: String -> String
 seqStr = ("seqBuilder(),\n" ++)
 
+io :: Bool -> String -> String
+io True = ("ioBuilder(true),\n" ++)
+io _    = ("ioBuilder(false),\n" ++)
+
 err :: Int -> (String -> String)
 err code = ("errorBuilder(" ++) . (show code ++) . ("),\n" ++)
 
@@ -103,6 +107,8 @@ putAtom atm =
   let
     atom (Prm "Y") = y
     atom (Prm "seq") = seqStr
+    atom (Prm "IO.Write") = io True
+    atom (Prm "IO.Read")  = io False
     atom (Prm op) = if "error" `isPrefixOf` op
                       then err $ read (drop 5 op)
                       else prim op

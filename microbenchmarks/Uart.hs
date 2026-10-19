@@ -8,6 +8,6 @@ main = echo
 
 echo :: IO ()
 echo = do
-  c <- uartGetChar
-  uartPutChar c
+  (Char i) <- uartGetChar
+  uartPutChar (Char (i + 1))
   echo
