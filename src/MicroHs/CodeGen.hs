@@ -86,17 +86,16 @@ findIdentIn n m = fromMaybe
   (errorMessage (getSLoc n) $ "No definition found for: " ++ showIdent n) $
   M.lookup n m
 
--- Expand Haskell string literals to lists of character code points.
--- Since these definitions have already passed compileEsc in Compile.hs,
--- run compileEsc on each newly generated list: encList contains the
--- O/K primitives, which must become Sc combinators before ROM emission.
--- Leave the regular MicroHs UTF-8 string path unchanged.
+-- Expand string literals BEFORE compileEsc (called from Compile.hs for
+-- Ouros targets).  Doing this after abstraction inserts an arbitrarily deep
+-- list spine into an existing Esc body, violating the reducer format.
+-- The resulting O/K primitives are handled by compileEsc's removeSKI pass.
 lowerStrings :: Exp -> Exp
 lowerStrings ae =
   case ae of
     -- encList uses O/K primitives; compileEsc turns these into supported
     -- Sc combinators before the Ouros ROM serializer sees the expression.
-    Lit (LStr cs) -> compileEsc (encList (map (Lit . LInt . ord) cs))
+    Lit (LStr cs) -> encList (map (Lit . LInt . ord) cs)
     App f a -> App (lowerStrings f) (lowerStrings a)
     Lam x e -> Lam x (lowerStrings e)
     Esc ar e -> Esc ar (lowerStrings e)
@@ -106,14 +105,46 @@ lowerStrings ae =
 codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
-    removed = deadRemove (mainName, map (\(i, e) -> (i, lowerStrings e)) ds)
+    -- Strings were lowered ahead of abstraction.  Do not lower them here:
+    -- new Apps introduced within Esc bodies would bypass hardware limits.
+    removed = deadRemove (mainName, ds)
     absorbed = absorbSingleton removed
     (heap, comb) = extractCombs $ escToSc absorbed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
-  in (removed, heap', dashArgs comb')
+    checkedHeap = zipWith checkHeapAExp [0..] heap'
+    checkedComb = zipWith checkCombAExp [0..] comb'
+  in (removed, checkedHeap, dashArgs checkedComb)
   -- in (escToSc removed, heap', map (substVar varMap) comb)
+
+-- A second, backend-level guard: every emitted reducer record must fit
+-- in the physical format even if a future optimization changes an Esc body.
+checkCombAExp :: Int -> AExp -> AExp
+checkCombAExp i ae
+  | length ae > 8 = bad "more than seven nested Apps"
+  | any ((> 8) . length) ae = bad "App wider than eight Atoms"
+  | any (any isNestedPtr) (drop 1 ae) = bad "nested App points to another nested App"
+  | any (any invalidComArity) ae = bad "Com arity outside 0..7"
+  | otherwise = ae
+  where
+    bad reason = error ("invalid Ouros comb AExp" ++ show i ++ ": " ++ reason)
+    isNestedPtr (Ptr _ True) = True
+    isNestedPtr _ = False
+
+checkHeapAExp :: Int -> AExp -> AExp
+checkHeapAExp i ae
+  | any ((> 8) . length) ae =
+      error ("invalid Ouros heap AExp" ++ show i ++ ": App wider than eight Atoms")
+  | any (any invalidComArity) ae =
+      error ("invalid Ouros heap AExp" ++ show i ++ ": Com arity outside 0..7")
+  | otherwise = ae
+
+-- The backend must never emit a negative or unencodable Com arity.
+-- The limit matches the maximum supported Ouros combinator arity.
+invalidComArity :: Atom -> Bool
+invalidComArity (Com ar _) = ar < 0 || ar > 7
+invalidComArity _ = False
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]
@@ -144,11 +175,18 @@ absorbSingleton ds =
         (c, args) = spine e
         args' = map walk args
       in case c of
-        Esc ar bd -> let
-          (bd', args'') = walk' bd 0 args'
-          diff = length args' - length args''
-          c' = Esc (ar - diff) bd'
-          in foldl App c' args''
+        Esc ar bd | ar > 0 -> let
+          -- Only formal arguments can be absorbed.  Any remaining Apps in
+          -- the spine are over-application of the combinator's result,
+          -- not additional arguments to the combinator itself.
+          -- Keep one formal argument unabsorbed so the resulting Com
+          -- still has a positive arity (the reducer needs a redex).
+          (candidates, rest) = splitAt (ar - 1) args'
+          (bd', kept) = walk' bd 0 candidates
+          absorbedCount = length candidates - length kept
+          c' = Esc (ar - absorbedCount) bd'
+          in foldl App c' (kept ++ rest)
+        Esc ar bd -> foldl App (Esc ar bd) args'
         _ -> foldl App c args'
     walk' :: Exp -> Int -> [Exp] -> (Exp, [Exp])
     walk' e _      []       = (e, [])

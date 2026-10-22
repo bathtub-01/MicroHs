@@ -6,3 +6,6 @@ import Data.Int
 newtype Char = Char Int
 
 type String = [Char]
+
+fromString :: String -> String
+fromString s = s

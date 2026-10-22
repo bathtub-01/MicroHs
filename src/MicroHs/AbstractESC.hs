@@ -102,18 +102,42 @@ longSpine' = lams [mkIdent "y"]
 compileEsc :: Exp -> Exp
 compileEsc = valid . etaRewrite . compileExpEsc . removeSKI
 
+-- Ouros reducer records contain one spine App and at most seven nested
+-- Apps.  Each nested App must be a direct child of the spine (depth <= 1),
+-- and each App holds at most eight Atoms.  Checking only spineLen is NOT
+-- sufficient: a short spine can still refer to arbitrarily many children.
+fitsEsc :: Int -> Exp -> Bool
+fitsEsc ar bd =
+  ar >= 0 && ar <= 7 &&
+  spineLen bd <= 8 && nestedLv bd <= 1 && nestedApp bd <= 7 &&
+  all ((<= 8) . spineLen) (nestedBodies bd)
+
+-- Inspect all application roots that become nested Apps in the record.
+nestedBodies :: Exp -> [Exp]
+nestedBodies (App f a@(App _ _)) = a : nestedBodies f ++ nestedBodies a
+nestedBodies (App f _) = nestedBodies f
+nestedBodies _ = []
+
 valid :: Exp -> Exp
-valid e =
-  let
-    check e'@(Esc ar bd) = if nestedLv bd > 1
-      then error ("invalid comb (nested level): " ++ show e')
-      else if ar > 7
-      then error ("invalid comb (arity): " ++ show e')
-      else if spineLen bd > 8
-      then error ("invalid comb (spine length): " ++ show e')
-      else e'
-    check e' = e'
-  in mapExp check e
+valid = walk
+  where
+    walk (App f a) = App (walk f) (walk a)
+    walk (Lam x e) = Lam x (walk e)
+    walk (Esc ar bd) =
+      let bd' = walk bd
+          e' = Esc ar bd'
+      in if not (fitsEsc ar bd')
+           then error ("invalid Ouros comb (arity/spine/depth/nested Apps): " ++ show e')
+           else e'
+    walk e = e
+
+-- If a local fusion produces a record too large for Ouros, use the
+-- unfused S/B/C combinator construction instead of emitting bad ROM data.
+validCombineResult :: Exp -> Bool
+validCombineResult e =
+  case spine e of
+    (Esc ar bd, _) -> fitsEsc ar bd
+    _ -> True
 
 compileExpEsc :: Exp -> Exp
 compileExpEsc ae =
@@ -141,6 +165,15 @@ abstractEsc ids x ae =
 
 combineEsc :: Exp -> Exp -> Exp
 combineEsc a1 a2 =
+  let result = combineEscRaw a1 a2
+      (c1, args1) = spine a1
+      (c2, args2) = spine a2
+  in if validCombineResult result
+       then result
+       else addEsc c1 args1 c2 args2
+
+combineEscRaw :: Exp -> Exp -> Exp
+combineEscRaw a1 a2 =
   let
     (c1, args1) = spine a1
     (c2, args2) = spine a2

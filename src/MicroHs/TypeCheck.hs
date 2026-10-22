@@ -74,7 +74,7 @@ identChar = mkIdentB nameChar
 -- around Int.  Use that type for literals only when it is in scope;
 -- otherwise retain the ordinary MicroHs Primitives.Char semantics.
 nameNanoChar :: String
-nameNanoChar = "NanoPrelude.Char"
+nameNanoChar = "Ouros.Char_String.Char"
 
 literalCharName :: Expected -> T String
 literalCharName mt = do

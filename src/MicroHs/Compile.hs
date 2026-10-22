@@ -30,6 +30,7 @@ import MicroHs.Abstract
 import MicroHs.AbstractESC
 import MicroHs.Builtin
 import MicroHs.CompileCache
+import MicroHs.CodeGen (lowerStrings)
 import MicroHs.Desugar
 import MicroHs.Exp
 import MicroHs.Expr
@@ -282,16 +283,19 @@ compileModule flags wrapRoot impt mn pathfn file = do
     -- Apply the initial World to the body of main, rather than generating
     -- a second entry function.  This happens after type checking/desugaring
     -- and before combinator abstraction.
+    -- Lower literals before ESC abstraction for Ouros.  Other MicroHs
+    -- targets retain their original string-literal compilation path.
+    forOuros e = if isOurosRomOutput flags then lowerStrings e else e
     wrapped = [ (i, if wrapMain && i == mainName
-                       then App e (Lit (LInt 1993)) -- The Monadic IO paper pulication year
-                       else e)
+                       then App (forOuros e) (Lit (LInt 1993))
+                       else forOuros e)
               | (i, e) <- opMoved ]
     scGraphs = [ (i, compileEsc e) | (i, e) <- wrapped ]
     -- The cache must retain the original meaning of main.  In particular,
     -- ordinary .comb/C builds must not inherit the Ouros World argument.
     cacheGraphs = if wrapMain
                     then zipWith (\(i, e) (_, ce) ->
-                           (i, if i == mainName then compileEsc e else ce)) opMoved scGraphs
+                           (i, if i == mainName then compileEsc (forOuros e) else ce)) opMoved scGraphs
                     else scGraphs
   let
     cmdl = setBindings dmdl scGraphs
