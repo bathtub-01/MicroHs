@@ -36,6 +36,8 @@ expToAtom ae =
                else error ("Strange Var exists: " ++ i) where i = showIdent f
     Lit (LInt i) -> Int i
     Lit (LPrim s) -> Prm s
+    Lit (LForImp s _) ->
+      error ("Ouros cannot emit C foreign import: " ++ s)
     Sc a _ _ -> Com a 42
     Esc a (Cbp p) -> Com a p
     Arg i -> Apt i True -- temp value
@@ -101,19 +103,43 @@ lowerStrings ae =
     Esc ar e -> Esc ar (lowerStrings e)
     _ -> ae
 
+-- MicroHs desugars non-exhaustive matches to an ordinary call to
+-- Control.Exception.Internal.patternMatchFail, which depends on the native
+-- exception/FFI runtime.  Ouros has a dedicated error Atom instead.
+--
+-- Keep this Ouros-only (CodeGen is not used by native MicroHs output).
+-- Match the fully applied compiler-generated call, not arbitrary imports;
+-- legitimate uses of foreign functions must still fail validation.
+--
+-- Run before compileEsc when possible, and again here as a safeguard for
+-- previously compiled/cache-loaded module definitions.
+lowerOurosPatternFailures :: Exp -> Exp
+lowerOurosPatternFailures ex =
+  case ex of
+    App (Var f) _
+      | showIdent f == "Control.Exception.Internal.patternMatchFail" ->
+          Lit (LPrim "error0")
+    App f x -> App (lowerOurosPatternFailures f) (lowerOurosPatternFailures x)
+    Lam x body -> Lam x (lowerOurosPatternFailures body)
+    Esc ar body -> Esc ar (lowerOurosPatternFailures body)
+    other -> other
+
 -- Takes the result of abstraction, generate heap image and comb image
 codeGen :: (Ident, [LDef]) -> ([LDef], [AExp], [AExp])
 codeGen (mainName, ds) =
   let
     -- Strings were lowered ahead of abstraction.  Do not lower them here:
     -- new Apps introduced within Esc bodies would bypass hardware limits.
-    removed = deadRemove (mainName, ds)
+    -- Some imports may come from cache; eliminate the synthetic exception
+    -- dependency on the final combined graph before dead-code elimination.
+    ourosDefs = [ (i, lowerOurosPatternFailures e) | (i, e) <- ds ]
+    removed = rejectForeignImports (deadRemove (mainName, ourosDefs))
     absorbed = absorbSingleton removed
     (heap, comb) = extractCombs $ escToSc absorbed
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
-    checkedHeap = zipWith checkHeapAExp [0..] heap'
+    checkedHeap = zipWith checkHeapAExp [0..] (map splitHeapAExp heap')
     checkedComb = zipWith checkCombAExp [0..] comb'
   in (removed, checkedHeap, dashArgs checkedComb)
   -- in (escToSc removed, heap', map (substVar varMap) comb)
@@ -132,6 +158,40 @@ checkCombAExp i ae
     isNestedPtr (Ptr _ True) = True
     isNestedPtr _ = False
 
+-- Heap Apps are unrestricted in nesting depth, but every physical App
+-- must contain at most eight Atoms.  A wide left-associated application
+-- [a,b,c,d,e,f,g,h,i] becomes:
+--
+--   root:   [Ptr n False, i]
+--   app n:  [a,b,c,d,e,f,g,h]
+--
+-- When an App needs several chunks, each new chunk points to the preceding
+-- chunk.  Existing nested-App indices (0 .. length ae - 2) are kept intact:
+-- new chunks are appended AFTER all original Apps.  Therefore no existing
+-- Ptr needs to be renumbered, and the new Ptr indices are allocated
+-- consecutively from length ae - 1.
+--
+-- Do NOT apply this to combinator bodies: the reducer ROM forbids a nested
+-- App from pointing to another nested App, so comb size is checked instead.
+splitHeapAExp :: AExp -> AExp
+splitHeapAExp ae =
+  let
+    (_, pieces) = mapAccumL splitOne (length ae - 1) ae
+  in map fst pieces ++ concatMap snd pieces
+  where
+    splitOne :: Int -> App -> (Int, (App, [App]))
+    splitOne next atoms =
+      let (root, extra) = splitWide next atoms
+      in (next + length extra, (root, extra))
+
+    splitWide :: Int -> App -> (App, [App])
+    splitWide next atoms =
+      case splitAt 8 atoms of
+        (prefix, []) -> (prefix, [])
+        (prefix, suffix) ->
+          let (root, further) = splitWide (next + 1) (Ptr next False : suffix)
+          in (root, prefix : further)
+
 checkHeapAExp :: Int -> AExp -> AExp
 checkHeapAExp i ae
   | any ((> 8) . length) ae =
@@ -145,6 +205,28 @@ checkHeapAExp i ae
 invalidComArity :: Atom -> Bool
 invalidComArity (Com ar _) = ar < 0 || ar > 7
 invalidComArity _ = False
+
+-- The standalone Ouros target cannot call native MicroHs C FFI entries.
+-- Check only live bindings (after deadRemove), and report their original
+-- names before singleton substitution obscures the provenance.  In
+-- particular, showLit prints LForImp "pokeWord" as "^pokeWord".
+rejectForeignImports :: [LDef] -> [LDef]
+rejectForeignImports ds =
+  case [ (showIdent name, imp)
+       | (name, body) <- ds
+       , imp <- foreignImports body ] of
+    [] -> ds
+    (name, imp) : _ ->
+      error ("Ouros: reachable C foreign import " ++ show imp ++
+             " in binding " ++ name ++
+             ". Replace this dependency with NanoPrelude/Ouros primitives.")
+  where
+    foreignImports :: Exp -> [String]
+    foreignImports (Lit (LForImp imp _)) = [imp]
+    foreignImports (App f x) = foreignImports f ++ foreignImports x
+    foreignImports (Lam _ body) = foreignImports body
+    foreignImports (Esc _ body) = foreignImports body
+    foreignImports _ = []
 
 -- remove unused definitions
 deadRemove :: (Ident, [LDef]) -> [LDef]

@@ -4,31 +4,29 @@ module Main where
 import Prelude()
 import NanoPrelude
 import Parser
+import GameOfLife (runGame)
 
 -- Command syntax ------------------------------------------------------------
 
 command :: String -> Parser a -> Parser a
 command name arguments = literal name >> arguments
 
-commands :: Parser String
+data Command = Reply String | StartGame
+
+commands :: Parser Command
 commands =
-      command "hello" (return "hi!")
-  <|> command "hi"    (return "hello!")
+      command "game"  (return StartGame)
+  <|> command "hello" (return (Reply "hi!"))
+  <|> command "hi"    (return (Reply "hello!"))
   <|> command "fib"   (
         spaces1 >> integer >>= \n ->
         if n >= 0 && n <= 40
-          then return (intToString (fib n))
+          then return (Reply (intToString (fib n)))
           else failure)
   <|> command "caesar" (
         spaces1 >> integer >>= \n ->
         spaces1 >> word >>= \s ->
-        return (caesar n s))
-
-handleCommand :: String -> String
-handleCommand line =
-  case parseAll commands line of
-    Nothing     -> "don't know!"
-    Just answer -> answer
+        return (Reply (caesar n s)))
 
 -- Pure command implementations ----------------------------------------------
 
@@ -112,8 +110,10 @@ loop :: Bool -> IO ()
 loop ignoreLF =
   uartPutString "ouros> " >>
   readLine ignoreLF [] >>= \(line, endedWithCR) ->
-  putLine (handleCommand line) >>
-  loop endedWithCR
+  case parseAll commands line of
+    Nothing -> putLine "don't know!" >> loop endedWithCR
+    Just (Reply text) -> putLine text >> loop endedWithCR
+    Just StartGame -> runGame endedWithCR >> loop False
 
 main :: IO ()
 main = putLine "Ouros UART demo" >> loop False

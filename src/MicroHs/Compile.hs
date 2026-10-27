@@ -30,7 +30,7 @@ import MicroHs.Abstract
 import MicroHs.AbstractESC
 import MicroHs.Builtin
 import MicroHs.CompileCache
-import MicroHs.CodeGen (lowerStrings)
+import MicroHs.CodeGen (lowerStrings, lowerOurosPatternFailures)
 import MicroHs.Desugar
 import MicroHs.Exp
 import MicroHs.Expr
@@ -285,7 +285,9 @@ compileModule flags wrapRoot impt mn pathfn file = do
     -- and before combinator abstraction.
     -- Lower literals before ESC abstraction for Ouros.  Other MicroHs
     -- targets retain their original string-literal compilation path.
-    forOuros e = if isOurosRomOutput flags then lowerStrings e else e
+    forOuros e = if isOurosRomOutput flags
+                    then lowerStrings (lowerOurosPatternFailures e)
+                    else e
     wrapped = [ (i, if wrapMain && i == mainName
                        then App (forOuros e) (Lit (LInt 1993))
                        else forOuros e)
