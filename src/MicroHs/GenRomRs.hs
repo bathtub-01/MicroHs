@@ -86,7 +86,7 @@ io _    = atomIndent "IO(false),\n"
 
 err :: Int -> (String -> String)
 err n =
-  atomIndent ("Err(" ++ show n ++ "),\n")
+  atomIndent ("E(" ++ show n ++ "),\n")
 
 genRomRs :: String -> ([AExp], [AExp]) -> String
 genRomRs progName (heap, cmb) =
