@@ -312,9 +312,6 @@ gameLoop state countdown ignoreLF =
       >>= \incoming ->
       case incoming of
         Just (Char byte) ->
-          -- Debug: show each received byte before the CRLF filter/key decoder.
-          -- Use an otherwise-unused portion of the header row.
-          putsAt 1 57 ("RX=" ++ number byte ++ "      ") >>
           if ignoreLF && byte == 10 then
             gameLoop state countdown False
           else applyKey state byte >>= \result ->
@@ -339,6 +336,4 @@ runGame ignoreLF =
   drawBoard 0 initial >>
   paintSelection initial 49 39 True >>
   drawStatus False 0 >>
-  -- Debug: proves initial rendering has reached the receive loop.
-  putsAt 1 57 "WAIT RX       " >>
   gameLoop (GameState initial 49 39 False 0 KeyNormal) framePolls ignoreLF

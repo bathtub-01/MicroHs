@@ -109,6 +109,9 @@ compileEsc = valid . etaRewrite . compileExpEsc . removeSKI
 fitsEsc :: Int -> Exp -> Bool
 fitsEsc ar bd =
   ar >= 0 && ar <= 7 &&
+  -- Arity 7 has arguments 0..6, not 0..7.  Shape and arity checks
+  -- alone do not catch an out-of-range reference in the combinator body.
+  all (\i -> i >= 0 && i < ar) (pullout bd) &&
   spineLen bd <= 8 && nestedLv bd <= 1 && nestedApp bd <= 7 &&
   all ((<= 8) . spineLen) (nestedBodies bd)
 
@@ -212,7 +215,13 @@ combineEscRaw a1 a2 =
                         (mapExpOnArgInt (+ lenArgs1) bd2)
           c = Esc (ar1 + ar2 - 2) bd'
         in foldl App c (args1 ++ args2)
-      else if xNotUsed args2 is2 &&
+      -- These two fusions introduce a reference to formal argument
+      -- (lenArgs1 + 1) while keeping arity ar1 unchanged.  They are
+      -- ONLY valid when that argument still exists in Esc ar1.
+      -- In particular, lenArgs1 may be ar1 - 1 (unary) or even >= ar1
+      -- (over-applied), which previously emitted Arg(ar1), Arg(ar1+N).
+      else if lenArgs1 + 1 < ar1 &&
+              xNotUsed args2 is2 &&
               (head is1 /= lenArgs1 + 1 || spineLen bd2 + spineLen bd1 - 1 <= 8)
       then
         let
@@ -223,7 +232,8 @@ combineEscRaw a1 a2 =
                         (Arg lenArgs1)
           c = Esc ar1 bd'
         in App (foldl App c args1) (etaRewrite a2Old)
-      else if length (filter (== lenArgs1 + 1) is1) <= 1 &&
+      else if lenArgs1 + 1 < ar1 &&
+           length (filter (== lenArgs1 + 1) is1) <= 1 &&
            (head is1 /= lenArgs1 + 1 || spineLen bd2 + spineLen bd1 - 1 <= 8) &&
            whenBd2Lv0 then
         let

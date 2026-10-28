@@ -135,7 +135,9 @@ codeGen (mainName, ds) =
     ourosDefs = [ (i, lowerOurosPatternFailures e) | (i, e) <- ds ]
     removed = rejectForeignImports (deadRemove (mainName, ourosDefs))
     absorbed = absorbSingleton removed
-    (heap, comb) = extractCombs $ escToSc absorbed
+    -- Check argument indices AGAIN after singleton absorption and SC
+    -- conversion.  These passes run after compileEsc's own validation.
+    (heap, comb) = extractCombs $ validateOurosArgs (escToSc absorbed)
     singletons = collectSingleton heap
     (heap', varMap) = numberFuns comb (mainName, heap) singletons
     comb' = map (expToAExp True . substVar varMap) comb
@@ -143,6 +145,35 @@ codeGen (mainName, ds) =
     checkedComb = zipWith checkCombAExp [0..] comb'
   in (removed, checkedHeap, dashArgs checkedComb)
   -- in (escToSc removed, heap', map (substVar varMap) comb)
+
+-- A combinator of arity n can only address Arg 0 .. Arg (n-1).
+-- Check this while the arity and the body are still associated.  Once
+-- extractCombs runs, comb is just a list of bodies, so this information
+-- would otherwise be lost and the ROM-width checker cannot detect it.
+-- This also catches bad indices introduced after compileEsc (for instance,
+-- by absorbSingleton or escToSc).
+validateOurosArgs :: [LDef] -> [LDef]
+validateOurosArgs = map checkDef
+  where
+    checkDef (nm, ex) = (nm, checkExp (showIdent nm) ex)
+
+    checkExp name (App f a) =
+      App (checkExp name f) (checkExp name a)
+    checkExp name (Esc ar bd)
+      | invalid ar (pullout bd) = bad name ar (pullout bd)
+      | otherwise = Esc ar (checkExp name bd)
+    checkExp name (Sc ar pat args)
+      | invalid ar args = bad name ar args
+      | otherwise = Sc ar pat args
+    checkExp _ e = e
+
+    invalid ar args = ar < 0 || ar > 7 ||
+      any (\i -> i < 0 || i >= ar) args
+
+    bad name ar args =
+      error ("invalid Ouros Arg index in " ++ name ++
+             " (combinator arity " ++ show ar ++
+             ", argument indices " ++ show args ++ ")")
 
 -- A second, backend-level guard: every emitted reducer record must fit
 -- in the physical format even if a future optimization changes an Esc body.
